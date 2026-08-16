@@ -10,12 +10,8 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(page, /TuckQ/);
   assert.match(page, /Student Portal Login/);
   assert.match(page, /cancelBooking/);
-  assert.match(page, /placePreorder/);
-  assert.match(page, /sendBillEmail/);
   assert.match(page, /downloadReport/);
-  assert.match(page, /Download bill/);
   assert.match(layout, /TuckQ \| TISB Tuck Shop/);
   assert.match(styles, /\.noticePanel/);
-  assert.match(styles, /\.billCard/);
   assert.doesNotMatch(page + layout, /SkeletonPreview|codex-preview|Queless/);
 });

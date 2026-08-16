@@ -427,10 +427,6 @@ nav button.active { background: var(--navy); color: #fff; }
   overflow: auto;
 }
 
-.compactItems {
-  max-height: 260px;
-}
-
 .items button {
   min-height: 92px;
   text-align: left;
@@ -465,44 +461,6 @@ nav button.active { background: var(--navy); color: #fff; }
 }
 
 .receipt div { display: flex; justify-content: space-between; gap: 10px; }
-
-.billList {
-  display: grid;
-  gap: 12px;
-}
-
-.billCard {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfdff;
-}
-
-.billCard header, .billCard footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-}
-
-.billCard header span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 760;
-}
-
-.billCard p {
-  margin: 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.billCard p b { color: var(--ink); white-space: nowrap; }
 
 .actions {
   display: flex;
@@ -554,7 +512,6 @@ th {
   .smallLinks, .formRow, .metricRow { grid-template-columns: 1fr; }
   .topActions .ghost { display: none; }
   .panel header { align-items: flex-start; flex-direction: column; }
-  .billCard header, .billCard footer, .billCard p { align-items: flex-start; flex-direction: column; }
   .cartLine { grid-template-columns: minmax(0, 1fr) auto; }
   .cartLine button { width: 100%; }
 }
