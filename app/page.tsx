@@ -397,7 +397,7 @@ export default function Home() {
         <section className="home">
           <header className="brandRow">
             <div className="brand">
-              <img src="https://www.tisb.org/assets/img/logo.png" alt="TISB crest" />
+              <img src="https://novus.tisb.org/static/media/TISB-Logo-DarkBG.034e8bf082f5ed2d22dd.png" alt="TISB school logo" />
               <div>
                 <b>TuckQ</b>
                 <span>TISB Tuck Shop</span>
@@ -441,7 +441,7 @@ export default function Home() {
         <section className="app">
           <header className="appTop">
             <div className="brand compact">
-              <img src="https://www.tisb.org/assets/img/logo.png" alt="TISB crest" />
+              <img src="https://novus.tisb.org/static/media/TISB-Logo-DarkBG.034e8bf082f5ed2d22dd.png" alt="TISB school logo" />
               <div><b>TuckQ</b><span>{state.user?.name}</span></div>
             </div>
             <nav>{allowedViews.map((item) => <button className={view === item ? "active" : ""} key={item} onClick={() => setView(item)}>{item}</button>)}</nav>
