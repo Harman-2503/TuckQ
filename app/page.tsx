@@ -103,6 +103,22 @@ function total(sale: Sale) {
   return sale.items.reduce((sum, item) => sum + item.price * item.qty, 0);
 }
 
+function billText(sale: Sale) {
+  return [
+    "TuckQ - TISB Tuck Shop",
+    `Bill: ${sale.billNo}`,
+    `Date: ${sale.date} ${sale.time}`,
+    `Student: ${sale.studentName} (${sale.studentId})`,
+    `Cashier: ${sale.cashier}`,
+    "",
+    ...sale.items.map((item) => `${item.qty} x ${item.name} @ ₹${item.price} = ₹${item.qty * item.price}`),
+    "",
+    `Total: ₹${total(sale)}`,
+    "",
+    "Please show this bill number at pickup.",
+  ].join("\n");
+}
+
 function slotLabels(increment: number) {
   const labels: string[] = [];
   for (let t = 15 * 60 + 45; t < 16 * 60 + 45; t += increment) {
@@ -142,6 +158,7 @@ export default function Home() {
   const [posStudentId, setPosStudentId] = useState("TISB1042");
   const [posStudentName, setPosStudentName] = useState("");
   const [search, setSearch] = useState("");
+  const [preorderCart, setPreorderCart] = useState<CartLine[]>([]);
   const [newStudent, setNewStudent] = useState({ id: "", name: "", className: "", email: "", password: "", limit: "2500" });
   const [newItem, setNewItem] = useState({ name: "", price: "40", day: "Everyday", category: "Snack" });
   const [importText, setImportText] = useState("");
@@ -188,6 +205,27 @@ export default function Home() {
       draft.notices.unshift({ id: `N-${Date.now()}`, title, body, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), type });
     });
     setMessage(title);
+  }
+
+  async function sendBillEmail(sale: Sale, to: string) {
+    const response = await fetch("/api/mail", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        to,
+        subject: `TuckQ bill ${sale.billNo}`,
+        body: billText(sale),
+      }),
+    }).then((res) => res.json()).catch(() => ({ ok: false, status: "Offline" }));
+    notify(response.sent ? "Bill emailed" : "Bill saved in mail outbox", `${sale.billNo} for ${sale.studentName}: ${response.status || "Queued"}.`, "mail");
+  }
+
+  function downloadBill(sale: Sale) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([billText(sale)], { type: "text/plain" }));
+    link.download = `${sale.billNo}.txt`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   function openLogin(role: Role) {
@@ -299,6 +337,49 @@ export default function Home() {
     });
   }
 
+  function addPreorderItem(item: CatalogueItem) {
+    if (item.stock <= 0) return setMessage("Item is out of stock.");
+    setPreorderCart((current) => {
+      const existing = current.find((entry) => entry.id === item.id);
+      if (existing) return current.map((entry) => entry.id === item.id ? { ...entry, qty: entry.qty + 1 } : entry);
+      return [...current, { id: item.id, name: item.name, price: item.price, qty: 1 }];
+    });
+  }
+
+  function changePreorderQty(id: string, delta: number) {
+    setPreorderCart((current) => current.map((entry) => entry.id === id ? { ...entry, qty: entry.qty + delta } : entry).filter((entry) => entry.qty > 0));
+  }
+
+  function placePreorder() {
+    if (!student) return setMessage("Sign in as a student first.");
+    if (!preorderCart.length) return setMessage("Choose items for pre-order first.");
+    const preorderTotal = preorderCart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const remainingDaily = DAILY_LIMIT - dailySpend(student.id);
+    if (preorderTotal > remainingDaily) return setMessage(`Daily tuck shop limit exceeded. Remaining today: ${money(remainingDaily)}.`);
+    const remainingMonthly = student.accountLimit - monthlySpend(student.id);
+    if (preorderTotal > remainingMonthly) return setMessage(`Monthly account limit exceeded. Remaining: ${money(remainingMonthly)}.`);
+    const sale: Sale = {
+      billNo: `TQ-${todayKey().replaceAll("-", "")}-${String(state.sales.length + 1).padStart(4, "0")}`,
+      date: todayKey(),
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      studentId: student.id,
+      studentName: student.name,
+      cashier: "Online pre-order",
+      items: preorderCart,
+    };
+    patch((draft) => {
+      preorderCart.forEach((line) => {
+        const stock = draft.catalogue.find((item) => item.id === line.id);
+        if (stock) stock.stock = Math.max(0, stock.stock - line.qty);
+      });
+      draft.sales.push(sale);
+      draft.lastReceipt = sale;
+      draft.notices.unshift({ id: `N-${Date.now()}`, title: "Pre-order placed", body: `${sale.billNo} is ready to show at pickup.`, time: "Now", type: "billing" });
+    });
+    setPreorderCart([]);
+    void sendBillEmail(sale, student.email);
+  }
+
   function checkout() {
     const id = posStudentId.trim().toUpperCase();
     let buyer = state.students.find((entry) => entry.id === id);
@@ -312,20 +393,20 @@ export default function Home() {
     if (cartTotal > remainingDaily) return setMessage(`Daily tuck shop limit exceeded. Remaining today: ${money(remainingDaily)}.`);
     const remainingMonthly = buyer.accountLimit - monthlySpend(buyer.id);
     if (cartTotal > remainingMonthly) return setMessage(`Monthly account limit exceeded. Remaining: ${money(remainingMonthly)}.`);
-    const billNo = `TQ-${todayKey().replaceAll("-", "")}-${String(state.sales.length + 1).padStart(4, "0")}`;
+    const sale: Sale = { billNo: `TQ-${todayKey().replaceAll("-", "")}-${String(state.sales.length + 1).padStart(4, "0")}`, date: todayKey(), time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), studentId: buyer.id, studentName: buyer.name, cashier: state.user?.name || "Counter", items: state.cart };
     patch((draft) => {
       if (!draft.students.some((entry) => entry.id === buyer?.id) && buyer) draft.students.push(buyer);
       draft.cart.forEach((line) => {
         const stock = draft.catalogue.find((item) => item.id === line.id);
         if (stock) stock.stock = Math.max(0, stock.stock - line.qty);
       });
-      const sale = { billNo, date: todayKey(), time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), studentId: buyer!.id, studentName: buyer!.name, cashier: draft.user?.name || "Counter", items: draft.cart };
       draft.sales.push(sale);
       draft.lastReceipt = sale;
       draft.cart = [];
       draft.notices.unshift({ id: `N-${Date.now()}`, title: "Bill created", body: `${buyer!.name} charged ${money(total(sale))}. Receipt notification queued.`, time: "Now", type: "billing" });
     });
-    setMessage(`Bill ${billNo} created.`);
+    void sendBillEmail(sale, buyer.email);
+    setMessage(`Bill ${sale.billNo} created.`);
   }
 
   function createStudent() {
@@ -476,6 +557,12 @@ export default function Home() {
                 <h3>Today&apos;s menu</h3>
                 <div className="miniList">{dayItems.slice(0, 8).map((item) => <span key={item.id}>{item.name} <b>{money(item.price)}</b></span>)}</div>
               </Panel>
+              <Panel title="Same-day pre-order" badge="Bill by email">
+                <p className="muted">Pre-order is available only for today&apos;s tuck shop menu. Show the online bill number at pickup.</p>
+                <div className="items compactItems">{dayItems.slice(0, 10).map((item) => <button key={item.id} onClick={() => addPreorderItem(item)}><b>{item.name}</b><span>{item.category} · {money(item.price)} · {item.stock} left</span></button>)}</div>
+                {preorderCart.length ? preorderCart.map((line) => <div className="cartLine" key={line.id}><span>{line.qty} x {line.name} @ {money(line.price)}</span><b>{money(line.qty * line.price)}</b><button onClick={() => changePreorderQty(line.id, -1)}>-</button><button onClick={() => changePreorderQty(line.id, 1)}>+</button></div>) : <p className="muted">No pre-order items selected.</p>}
+                <button className="primary" onClick={placePreorder}>Place pre-order and email bill</button>
+              </Panel>
             </section>
           )}
 
@@ -509,10 +596,19 @@ export default function Home() {
           {view === "account" && (
             <section className="grid two">
               <Panel title="Student account" badge={student ? student.id : "All"}>
-                <div className="metricRow"><Metric label="Today" value={money(student ? dailySpend(student.id) : 0)} /><Metric label="Left today" value={money(student ? DAILY_LIMIT - dailySpend(student.id) : DAILY_LIMIT)} /><Metric label="Month" value={money(student ? monthlySpend(student.id) : 0)} /></div>
+                <div className="metricRow"><Metric label="Today" value={money(student ? dailySpend(student.id) : 0)} /><Metric label="Left today" value={money(student ? DAILY_LIMIT - dailySpend(student.id) : DAILY_LIMIT)} /><Metric label="Month left" value={money(student ? student.accountLimit - monthlySpend(student.id) : 0)} /></div>
               </Panel>
               <Panel title="Recent bills" badge={`${state.sales.length} bills`}>
-                <Table headers={["Bill", "Student", "Total"]} rows={state.sales.slice(-10).reverse().map((sale) => [sale.billNo, sale.studentName, money(total(sale))])} />
+                <div className="billList">
+                  {state.sales.filter((sale) => !student || sale.studentId === student.id).slice(-10).reverse().map((sale) => (
+                    <article className="billCard" key={sale.billNo}>
+                      <header><b>{sale.billNo}</b><span>{sale.date} · {sale.cashier}</span></header>
+                      {sale.items.map((item) => <p key={item.id}>{item.qty} x {item.name} @ {money(item.price)} <b>{money(item.qty * item.price)}</b></p>)}
+                      <footer><strong>Total {money(total(sale))}</strong><button className="ghost" onClick={() => downloadBill(sale)}>Download bill</button></footer>
+                    </article>
+                  ))}
+                  {!state.sales.filter((sale) => !student || sale.studentId === student.id).length && <p className="muted">No bills yet.</p>}
+                </div>
               </Panel>
             </section>
           )}
