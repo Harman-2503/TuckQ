@@ -1710,6 +1710,12 @@ TISB1044, Rehan Pillai</textarea>
     function openPortal(role) {
       selectedPortal = role;
       const copy = portalCopy(role);
+      const defaults = {
+        student: { id: "TISB1042", name: "Aarav Nair", password: "student1042" },
+        operator: { id: "STAFF01", name: "Tuck Shop Staff", password: "staff123" },
+        admin: { id: "ADMIN01", name: "School Admin", password: "admin123" }
+      };
+      const preset = defaults[role] || defaults.student;
       $("loginRole").value = role;
       $("loginTitle").textContent = copy.title;
       $("loginSubtitle").textContent = copy.subtitle;
@@ -1718,9 +1724,9 @@ TISB1044, Rehan Pillai</textarea>
       $("loginBadge").textContent = copy.badge;
       $("loginId").placeholder = copy.idPlaceholder;
       $("loginName").placeholder = copy.namePlaceholder;
-      $("loginId").value = "";
-      $("loginName").value = "";
-      $("loginPassword").value = "";
+      $("loginId").value = preset.id;
+      $("loginName").value = preset.name;
+      $("loginPassword").value = preset.password;
       showScreen("loginScreen");
     }
 
@@ -2735,7 +2741,8 @@ TISB1044, Rehan Pillai</textarea>
         const role = $("loginRole").value;
         const demoId = role === "student" ? "TISB1042" : role === "operator" ? "STAFF01" : "ADMIN01";
         const id = ($("loginId").value.trim().toUpperCase() || demoId);
-        const password = $("loginPassword").value.trim();
+        const defaultPassword = role === "student" ? `student${id.slice(-4)}` : role === "operator" ? "staff123" : "admin123";
+        const password = $("loginPassword").value.trim() || defaultPassword;
         let name = $("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "operator" ? "Tuck Shop Staff" : "School Admin");
         if (role === "student") {
           const student = findStudent(id);

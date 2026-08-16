@@ -11,6 +11,9 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(page, /iframe/);
   assert.match(page, /\/tuckq\.html/);
   assert.match(oldUi, /TISB Tuck Shop Operating System/);
+  assert.match(oldUi, /admin123/);
+  assert.match(oldUi, /student1042/);
+  assert.match(oldUi, /createStudentLogin/);
   assert.match(oldUi, /Queue ticket cancelled/);
   assert.match(oldUi, /salesReportRows/);
   assert.match(oldUi, /TISB-Logo-DarkBG/);
