@@ -1,100 +1,78 @@
-# vinext-starter
+# TuckQ
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+TuckQ is a school tuck shop operating system for TISB. It includes separate
+student, operator, POS, and admin workflows in one hosted app.
 
-## Prerequisites
+Live site:
+https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 
-- Node.js `>=22.13.0`
+## Features
 
-## Quick Start
+- Student login with ID and password
+- Same-day slot booking between 3:45 PM and 4:45 PM
+- Slot cancellation and queue ticket generation
+- Student pre-ordering with online bill viewing and download
+- POS billing by student ID, with automatic student name lookup
+- Daily purchase limit of Rs 280 per student
+- Student account view with daily, weekly, monthly, and item-level bills
+- Operator controls for opening and closing the tuck shop
+- Admin student login creation/import flow
+- Day-wise menu management, including everyday chips items
+- Downloadable reports for sales, students, and billing
+- Email receipt/warning flow through the hosted `/api/mail` endpoint
+- Cloudflare D1-backed state persistence on the hosted Site
+
+## Demo Access
+
+Use these seeded accounts for presentation and testing:
+
+- Student: `TISB1042` / `student1042`
+- Operator: `STAFF01` / `staff123`
+- Admin: `ADMIN01` / `admin123`
+
+## Email Setup
+
+The hosted version sends email through Resend when these production environment
+variables are configured in Sites:
+
+- `MAIL_MODE=live`
+- `RESEND_API_KEY`
+- `MAIL_FROM`
+
+The app records all mail attempts in the `mail_outbox` D1 table. If mail is not
+configured, messages are saved as drafts instead of being sent.
+
+For a real school sender address, verify the school's sending domain in Resend
+and update `MAIL_FROM` to that verified address.
+
+## Local Development
+
+Requires Node.js `>=22.13.0`.
 
 ```bash
 npm install
 npm run dev
-npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+## Build And Test
 
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm test
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+This builds the production bundle and runs a rendered HTML smoke test.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+## Project Shape
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+- `public/tuckq.html`: production TuckQ interface
+- `app/page.tsx`: hosts the TuckQ interface
+- `app/api/state/route.ts`: D1-backed app state persistence
+- `app/api/mail/route.ts`: email sending and outbox persistence
+- `app/api/tuckq/route.ts`: TuckQ API surface
+- `drizzle/`: database migrations
+- `.openai/hosting.json`: Sites hosting configuration
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+## Notes
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+This repository is configured for the existing public Sites deployment. Do not
+commit `.env` files or private API keys.
