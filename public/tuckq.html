@@ -1,0 +1,2868 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TISB Tuck Shop POS</title>
+  <style>
+    :root {
+      --ink: #18213a;
+      --muted: #66708a;
+      --line: #dbe1ed;
+      --panel: #ffffff;
+      --wash: #f5f7fb;
+      --navy: #23235f;
+      --navy-2: #171943;
+      --copper: #bf835e;
+      --green: #24785f;
+      --yellow: #d59821;
+      --red: #b94545;
+      --blue: #3765aa;
+      --shadow: 0 18px 50px rgba(24, 33, 58, .12);
+      --soft-shadow: 0 10px 24px rgba(24, 33, 58, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--wash);
+      color: var(--ink);
+      letter-spacing: 0;
+      overflow-x: hidden;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    button:active { transform: translateY(1px); }
+    button:disabled { cursor: not-allowed; opacity: .55; transform: none; }
+
+    .screen { min-height: 100vh; display: none; }
+    .screen.active { display: grid; }
+
+    .landing {
+      background:
+        linear-gradient(110deg, rgba(23,25,67,.95), rgba(35,35,95,.78)),
+        url("https://www.tisb.org/assets/img/slider/tisb-school.webp");
+      background-size: cover;
+      background-position: center;
+      color: white;
+      align-items: center;
+      padding: 28px;
+    }
+
+    .landing-inner {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 36px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .logo-lockup {
+      display: grid;
+      grid-template-columns: 62px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .crest {
+      width: 62px;
+      height: 62px;
+      border-radius: 8px;
+      background: white;
+      padding: 5px;
+      object-fit: contain;
+    }
+
+    .logo-lockup h1, .brand h1 { margin: 0; font-size: 22px; line-height: 1.05; overflow-wrap: anywhere; }
+    .logo-lockup p, .brand p { margin: 4px 0 0; color: #e4c9b5; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
+
+    .landing-copy {
+      max-width: 760px;
+      padding: 72px 0 24px;
+    }
+
+    .landing-copy h2 {
+      margin: 0;
+      font-size: clamp(42px, 8vw, 92px);
+      line-height: .92;
+      max-width: 760px;
+    }
+
+    .landing-copy p {
+      color: #eef1ff;
+      font-size: 18px;
+      line-height: 1.55;
+      max-width: 640px;
+      margin: 20px 0 0;
+    }
+
+    .landing-actions, .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .landing-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      max-width: 760px;
+    }
+
+    .portal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      max-width: 980px;
+    }
+
+    .portal-card {
+      border: 1px solid rgba(255,255,255,.24);
+      background: rgba(255,255,255,.12);
+      border-radius: 8px;
+      padding: 18px;
+      color: white;
+      text-align: left;
+      min-height: 172px;
+      display: grid;
+      align-content: space-between;
+      gap: 14px;
+      backdrop-filter: blur(12px);
+    }
+
+    .portal-card:hover, .item-btn:hover, .nav-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .portal-card strong {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .portal-card span {
+      color: #e7eaf8;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .portal-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.18);
+      font-weight: 900;
+    }
+
+    .landing-stat {
+      border: 1px solid rgba(255,255,255,.24);
+      background: rgba(255,255,255,.11);
+      border-radius: 8px;
+      padding: 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .landing-stat b { display: block; font-size: 28px; }
+    .landing-stat span { color: #d6daee; font-size: 13px; }
+
+    .auth-wrap {
+      place-items: center;
+      padding: 24px;
+      background:
+        linear-gradient(120deg, rgba(244,246,251,.98), rgba(255,255,255,.94)),
+        url("https://novus.tisb.org/static/media/TISB-Logo-DarkBG.034e8bf082f5ed2d22dd.png");
+      background-size: 420px;
+      background-repeat: no-repeat;
+      background-position: right -80px bottom -80px;
+    }
+
+    .login-card {
+      width: min(460px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .login-card .primary { width: 100%; }
+
+    .login-card label {
+      color: #4f5a73;
+    }
+
+    .login-badge {
+      width: fit-content;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: var(--navy);
+      font-weight: 850;
+      font-size: 12px;
+      padding: 7px 10px;
+    }
+
+    .portal-role-field { display: none; }
+
+    .shell {
+      min-height: 100vh;
+      grid-template-columns: 340px 1fr;
+      background: var(--wash);
+    }
+
+    aside {
+      background: linear-gradient(180deg, #171943, #23235f 72%, #171943);
+      color: white;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      min-width: 0;
+      min-height: 100vh;
+      align-self: stretch;
+      overflow: hidden;
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+      color: white;
+      overflow: hidden;
+    }
+
+    .brand .crest { width: 58px; height: 58px; }
+    .brand h1 {
+      color: white;
+      text-shadow: 0 1px 12px rgba(0,0,0,.24);
+      font-size: 24px;
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .brand p {
+      color: #f0d8c7;
+      text-shadow: 0 1px 10px rgba(0,0,0,.2);
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    nav { display: grid; gap: 8px; }
+
+    .nav-btn {
+      width: 100%;
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #e9ecf8;
+      background: transparent;
+      text-align: left;
+    }
+
+    .nav-btn.active, .nav-btn:hover { background: rgba(255,255,255,.12); }
+
+    .side-note {
+      font-size: 12px;
+      line-height: 1.4;
+      color: #bec4da;
+      margin: auto 0 0;
+    }
+
+    main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-width: 0;
+    }
+
+    header {
+      background: rgba(255,255,255,.86);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--line);
+      padding: 18px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .title h2 { margin: 0; font-size: 22px; }
+    .title span { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--yellow);
+      box-shadow: 0 0 0 4px rgba(213,152,33,.14);
+    }
+
+    .content {
+      padding: 28px;
+      display: grid;
+      gap: 20px;
+      align-content: start;
+    }
+
+    .hero {
+      background:
+        linear-gradient(110deg, rgba(35,35,95,.96), rgba(29,48,94,.86)),
+        url("https://www.tisb.org/assets/img/slider/tisb-school.webp");
+      background-size: cover;
+      background-position: center;
+      color: white;
+      min-height: 220px;
+      display: grid;
+      align-content: end;
+      gap: 14px;
+    }
+
+    .hero-compact {
+      min-height: 132px;
+      align-content: center;
+    }
+
+    .hero h2 {
+      margin: 0;
+      max-width: 720px;
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: .95;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 650px;
+      color: #e9edf9;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .student-welcome {
+      background: linear-gradient(120deg, #171943 0%, #23235f 58%, #34377a 100%) !important;
+      color: #ffffff !important;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      border-color: #23235f;
+      box-shadow: 0 18px 50px rgba(23,25,67,.24);
+    }
+
+    .student-welcome .section-label { color: #e4c9b5 !important; }
+
+    .student-welcome h2 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 56px);
+      line-height: .98;
+      color: #ffffff !important;
+    }
+
+    .student-welcome p {
+      margin: 10px 0 0;
+      color: #e8ecff !important;
+      line-height: 1.45;
+    }
+
+    .welcome-stat {
+      min-width: 210px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.10);
+      border-radius: 8px;
+      padding: 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .welcome-stat b {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .welcome-stat b { color: #ffffff !important; }
+    .welcome-stat span { color: #d8ddf5 !important; font-size: 12px; font-weight: 760; }
+
+    .welcome-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .student-dashboard {
+      display: grid;
+      grid-template-columns: minmax(360px, .92fr) minmax(420px, 1.08fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .student-left {
+      display: grid;
+      gap: 16px;
+    }
+
+    .slot-list.compact {
+      max-height: 520px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .slot-list.compact .slot {
+      min-height: 76px;
+    }
+
+    .bill-text {
+      display: block;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+
+    .pickup-bill .actions {
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .view { display: none; }
+    .view.active { display: grid; gap: 20px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(300px, .85fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .panel { padding: 22px; }
+
+    .section-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+
+    .status { display: grid; gap: 16px; }
+
+    .status-head, .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    h3 { margin: 0; font-size: 18px; }
+    p { line-height: 1.5; }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 88px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcff;
+    }
+
+    .metric.good { border-color: #bde5d3; background: #f1fbf7; }
+    .metric.warn { border-color: #f0d18b; background: #fff9e8; }
+    .metric.hot { border-color: #d9c5ff; background: #f6f1ff; }
+
+    .metric b { display: block; font-size: 28px; line-height: 1; margin-bottom: 8px; }
+    .metric span, .muted { color: var(--muted); font-size: 12px; }
+
+    .primary, .secondary, .danger, .quiet {
+      min-height: 44px;
+      border-radius: 8px;
+      padding: 0 16px;
+      font-weight: 750;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .primary { background: var(--navy); color: white; box-shadow: 0 12px 28px rgba(35,35,95,.24); }
+    .secondary { background: #fff7f1; color: #7a4428; border: 1px solid #e7c5ad; }
+    .quiet { background: white; color: var(--ink); border: 1px solid var(--line); }
+    .danger { background: #fff0f0; color: var(--red); border: 1px solid #efc4c4; }
+
+    .slot-list, .menu-list, .history-list, .roster-list, .preorder-list { display: grid; gap: 10px; }
+
+    .slot, .menu-item, .history-item, .queue-item, .student-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #fbfcff;
+    }
+
+    .slot strong, .menu-item strong, .history-item strong, .queue-item strong, .student-row strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .slot span, .menu-item span, .history-item span, .queue-item span, .student-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.green { background: #e5f6ef; color: var(--green); }
+    .badge.yellow { background: #fff5db; color: #8a5b00; }
+    .badge.blue { background: #eaf0ff; color: var(--blue); }
+    .badge.red { background: #ffe8e8; color: var(--red); }
+    .badge.copper { background: #fff0e6; color: #8e5230; }
+
+    .queue-number {
+      font-size: clamp(54px, 12vw, 112px);
+      line-height: .9;
+      font-weight: 900;
+      color: var(--navy);
+      letter-spacing: 0;
+    }
+
+    .called { background: #fff6dc; border-color: #f0cc6c; }
+    .called .queue-number { color: #9a6700; }
+
+    .table { width: 100%; border-collapse: collapse; font-size: 14px; overflow: hidden; }
+    .table-wrap { overflow-x: auto; }
+    th, td { border-bottom: 1px solid var(--line); padding: 13px 10px; text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+
+    .segmented {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8f9fd;
+    }
+
+    .segmented button {
+      min-width: 42px;
+      min-height: 34px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .segmented button.active {
+      background: white;
+      color: var(--navy);
+      box-shadow: 0 6px 18px rgba(24,33,58,.10);
+    }
+
+    .fast-panel {
+      background: #121436;
+      color: white;
+      border-radius: 8px;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .fast-panel .metric { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); }
+    .fast-panel .metric span { color: #cbd0e9; }
+    .fast-panel .metric b { color: white; }
+
+    .big-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .big-controls button { min-height: 86px; font-size: 20px; border-radius: 8px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      background: white;
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 170px;
+      padding: 12px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .pos-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .filter-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) 180px 160px;
+      gap: 10px;
+      margin-top: 16px;
+      align-items: end;
+    }
+
+    .item-btn {
+      min-height: 92px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcff;
+      color: var(--ink);
+      padding: 12px;
+      text-align: left;
+      display: grid;
+      align-content: space-between;
+      gap: 10px;
+    }
+
+    .item-btn.selected {
+      border-color: var(--navy);
+      background: #f0f2ff;
+    }
+
+    .item-btn strong { font-size: 14px; line-height: 1.25; }
+    .item-btn span { color: var(--muted); font-size: 12px; }
+
+    .cart-line {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 0;
+    }
+
+    .cart-line:last-child { border-bottom: 0; }
+
+    .pickup-bill {
+      border: 1px dashed #b7c0d5;
+      border-radius: 8px;
+      background: #fbfcff;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .pickup-bill strong { color: var(--navy); }
+
+    .bill-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(18,20,54,.52);
+    }
+
+    .bill-modal.open { display: grid; }
+
+    .bill-sheet {
+      width: min(520px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 24px 70px rgba(18,20,54,.28);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .receipt {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #111827;
+    }
+
+    .receipt h3 { font-family: inherit; text-align: center; }
+    .receipt-row { display: flex; justify-content: space-between; gap: 12px; margin: 6px 0; }
+    .receipt-total { border-top: 1px dashed #9ca3af; margin-top: 10px; padding-top: 10px; font-weight: 900; }
+
+    .account-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .report-card {
+      min-height: 128px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcff;
+      display: grid;
+      gap: 12px;
+      align-content: space-between;
+    }
+
+    .report-card strong { display: block; }
+    .report-card span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #receiptPreview, #receiptPreview * { visibility: visible; }
+      #receiptPreview {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 76mm;
+        box-shadow: none;
+        border: 0;
+      }
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      max-width: 380px;
+      background: var(--navy-2);
+      color: white;
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      transform: translateY(140%);
+      transition: transform .25s ease;
+      z-index: 20;
+    }
+
+    .toast.show { transform: translateY(0); }
+
+    @media (max-width: 920px) {
+      .landing { padding: 18px; align-items: start; }
+      .landing-copy { padding: 36px 0 12px; }
+      .landing-stats, .portal-grid, .grid, .metric-row, .form-grid, .big-controls, .pos-grid, .item-grid, .account-summary, .filter-row, .report-grid { grid-template-columns: 1fr; }
+      .student-welcome { grid-template-columns: 1fr; }
+      .welcome-stat { min-width: 0; }
+      .welcome-stats, .student-dashboard { grid-template-columns: 1fr; }
+      .shell { display: block; min-height: 100vh; }
+      aside { position: relative; z-index: 30; width: 100%; min-height: auto; padding: 14px 16px; background: linear-gradient(180deg, #171943, #23235f); border-bottom: 1px solid rgba(255,255,255,.12); box-shadow: 0 16px 36px rgba(20,33,61,.16); }
+      .brand { grid-template-columns: 44px minmax(0, 1fr); max-width: 100%; }
+      .brand h1 { font-size: 18px; color: white; }
+      .brand p { font-size: 12px; color: #f0d8c7; }
+      .brand .crest, .logo-lockup .crest { width: 44px; height: 44px; }
+      nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .nav-btn { grid-template-columns: 1fr; justify-items: center; text-align: center; font-size: 12px; min-width: 0; color: #f4f6ff; background: rgba(255,255,255,.08); }
+      .nav-btn span { min-width: 0; overflow-wrap: anywhere; }
+      .side-note { display: none; }
+      main { display: block; min-width: 0; }
+      header { position: relative; top: auto; z-index: 5; padding: 18px 16px; align-items: flex-start; flex-direction: column; background: white; }
+      .content { padding: 16px; }
+      .hero { min-height: 180px; color: white; }
+      .status-head, .toolbar { flex-direction: column; }
+      .table { min-width: 0; font-size: 12px; }
+      th, td { padding: 10px 6px; overflow-wrap: anywhere; }
+      .slot, .menu-item, .history-item, .queue-item, .student-row { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <section class="screen landing active" id="landingScreen">
+    <div class="landing-inner">
+      <div class="topbar">
+        <div class="logo-lockup">
+          <img class="crest" src="https://novus.tisb.org/static/media/TISB-Logo-DarkBG.034e8bf082f5ed2d22dd.png" alt="TISB school logo">
+          <div>
+            <h1>TuckQ</h1>
+            <p>TISB Tuck Shop Operating System</p>
+          </div>
+        </div>
+        <button class="quiet portal-open" data-portal="student">Student Login</button>
+      </div>
+      <div class="landing-copy">
+        <h2>TuckQ</h2>
+        <p>Production-ready tuck shop software for TISB: student slot booking, pre-orders, POS billing, emailed bills, queue operations, admin reports, and account limits in one local system.</p>
+      </div>
+      <div class="portal-grid">
+        <button class="portal-card portal-open" data-portal="student">
+          <div class="portal-icon">ST</div>
+          <div><strong>Student Portal</strong><span>Book slots, pre-order items, receive the bill by email, and track daily, weekly, and monthly tuck shop billing.</span></div>
+        </button>
+        <button class="portal-card portal-open" data-portal="operator">
+          <div class="portal-icon">₹</div>
+          <div><strong>POS Portal</strong><span>Scan a student card, auto-load the name, add day-wise items, email the bill, and print a proper receipt.</span></div>
+        </button>
+        <button class="portal-card portal-open" data-portal="admin">
+          <div class="portal-icon">AD</div>
+          <div><strong>Admin Portal</strong><span>Create student logins, manage cards, POS menu, slots, imports, reports, and school settings.</span></div>
+        </button>
+      </div>
+      <div class="landing-stats">
+        <div class="landing-stat"><b>3:45-4:45</b><span>After-school window</span></div>
+        <div class="landing-stat"><b>5/10 min</b><span>Configurable increments</span></div>
+        <div class="landing-stat"><b>₹280/day</b><span>Student purchase limit</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen auth-wrap" id="loginScreen">
+    <form class="login-card" id="loginForm">
+      <div class="logo-lockup">
+        <img class="crest" src="https://novus.tisb.org/static/media/TISB-Logo-DarkBG.034e8bf082f5ed2d22dd.png" alt="TISB school logo">
+        <div>
+          <h1 id="loginTitle">Student Login</h1>
+          <p id="loginSubtitle">Book slots and view your account.</p>
+        </div>
+      </div>
+      <div class="login-badge" id="loginBadge">Student access</div>
+      <label class="portal-role-field">Role
+        <select id="loginRole">
+          <option value="student">Student</option>
+          <option value="operator">Tuck Shop Operator</option>
+          <option value="admin">School Admin</option>
+        </select>
+      </label>
+      <label>ID card number
+        <input id="loginId" autocomplete="off" placeholder="Example: TISB1042">
+      </label>
+      <label>Name
+        <input id="loginName" autocomplete="name" placeholder="Your full name">
+      </label>
+      <label>Password
+        <input id="loginPassword" autocomplete="current-password" type="password" placeholder="Enter password">
+      </label>
+      <div class="actions">
+        <button class="primary" type="submit" id="loginSubmitBtn">Enter Student Portal</button>
+        <button class="quiet" type="button" id="backHomeBtn">Back</button>
+      </div>
+      <p class="muted" id="loginHint">Student access uses the ID card number and password created by Admin.</p>
+    </form>
+  </section>
+
+  <section class="screen shell" id="appScreen">
+    <aside>
+      <div class="brand">
+        <img class="crest" src="https://novus.tisb.org/static/media/TISB-Logo-DarkBG.034e8bf082f5ed2d22dd.png" alt="TISB school logo">
+        <div>
+          <h1>TuckQ</h1>
+          <p>TISB Tuck Shop queue and booking desk</p>
+        </div>
+      </div>
+      <nav aria-label="Main views">
+        <button class="nav-btn active" data-view="student" data-roles="student,operator,admin"><span>ST</span><span>Student</span></button>
+        <button class="nav-btn" data-view="operator" data-roles="operator,admin"><span>OP</span><span>Operator</span></button>
+        <button class="nav-btn" data-view="pos" data-roles="operator,admin"><span>₹</span><span>POS</span></button>
+        <button class="nav-btn" data-view="account" data-roles="student,admin"><span>AC</span><span>Account</span></button>
+        <button class="nav-btn" data-view="import" data-roles="operator,admin"><span>ID</span><span>Import</span></button>
+        <button class="nav-btn" data-view="admin" data-roles="admin"><span>AD</span><span>Admin</span></button>
+      </nav>
+      <p class="side-note">Students can reserve slots before the tuck shop opens. Operators can add students by ID card and call batches from a tablet-friendly counter view.</p>
+    </aside>
+
+    <main>
+      <header>
+        <div class="title">
+          <h2 id="pageTitle">Student Tuck Shop</h2>
+          <span id="userLine">NAFL Valley, Whitefield-Sarjapur Road, Bengaluru</span>
+        </div>
+        <div class="actions">
+          <div class="pill"><span class="dot" id="stateDot"></span><span id="openLabel">Opening soon: 3:45 PM</span></div>
+          <button class="quiet" id="logoutBtn">Log Out</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <section class="view active" id="student">
+          <div class="panel student-welcome">
+            <div>
+              <p class="section-label" style="color:#e4c9b5;">Student Tuck Shop</p>
+              <h2 id="welcomeName">Welcome to TuckQ</h2>
+              <p id="welcomeMeta">Book slots, pre-order tuck shop items, receive the bill online, and show it at pickup.</p>
+              <div class="actions" style="margin-top:16px;">
+                <span class="badge green" id="welcomeStatus">Pre-open booking active</span>
+                <span class="badge blue">3:45-4:45 PM slots</span>
+              </div>
+            </div>
+            <div class="welcome-stats">
+              <div class="welcome-stat">
+                <b id="welcomeLimit">₹280</b>
+                <span>Daily tuck shop balance left</span>
+              </div>
+              <div class="welcome-stat">
+                <b id="welcomeMonthlyLeft">₹0</b>
+                <span>Monthly account amount left</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="student-dashboard">
+            <div class="student-left">
+              <div class="panel status" id="studentStatus">
+                <div class="status-head">
+                  <div>
+                    <h3 id="shopStatus">Tuck Shop Closed</h3>
+                    <p id="shopCopy">Bookings are open for 3:45-4:45 PM before service starts.</p>
+                  </div>
+                  <span class="badge yellow" id="studentBadge">Pre-open booking</span>
+                </div>
+
+                <div class="metric-row">
+                  <div class="metric"><b id="waitMetric">~6m</b><span>Estimated wait</span></div>
+                  <div class="metric"><b id="waitingMetric">0</b><span>Students waiting</span></div>
+                  <div class="metric"><b id="callingMetric">None</b><span>Currently calling</span></div>
+                </div>
+
+                <div id="ticketCard" class="panel" style="box-shadow:none; display:none;">
+                  <span class="badge blue" id="ticketState">WAITING</span>
+                  <div class="queue-number" id="ticketNumber">#27</div>
+                  <h3 id="ticketTitle">You are in.</h3>
+                  <p id="ticketCopy">Estimated wait: 6-9 min.</p>
+                </div>
+
+                <div class="actions">
+                  <button class="primary" id="joinBtn">Join Queue</button>
+                  <button class="secondary" id="bookBtn">Book Next Slot</button>
+                  <button class="quiet" id="leaveBtn">Leave Queue</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="status-head">
+                <h3>After-school Slots</h3>
+                <span class="badge green" id="slotStatusBadge">Open now</span>
+              </div>
+              <div class="slot-list compact" id="slots"></div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="panel">
+              <div class="status-head">
+                <h3>Today's Menu</h3>
+                <span class="badge copper">Available today</span>
+              </div>
+              <div class="menu-list" id="menu"></div>
+            </div>
+            <div class="panel">
+              <div class="status-head">
+                <h3>My Online Bills</h3>
+                <span class="badge green">Email + pickup</span>
+              </div>
+              <div class="history-list" id="studentBills"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <h3>Pre-order For Pickup</h3>
+                <p class="muted" style="margin:6px 0 0;">Same-day pre-orders only. Choose from today's menu, get the bill by email, then show the bill number at pickup.</p>
+              </div>
+              <span class="badge blue" id="preorderDayLabel">Today only</span>
+            </div>
+            <div class="pos-grid" style="margin-top:16px;">
+              <div>
+                <div class="item-grid" id="preorderItems"></div>
+              </div>
+              <div>
+                <div class="pickup-bill">
+                  <strong>Pre-order cart</strong>
+                  <div id="preorderCart"></div>
+                  <div class="metric" style="margin-top:8px;">
+                    <b id="preorderTotal">₹0</b>
+                    <span>Online bill total</span>
+                  </div>
+                  <button class="primary" id="confirmPreorderBtn">Confirm Pre-order & Email Bill</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="operator">
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <h3>Live Queue Control</h3>
+                <p class="muted" style="margin:6px 0 0;">Built for the TISB tuck shop counter.</p>
+              </div>
+              <div class="segmented" id="batchSelect">
+                <button data-batch="1">1</button>
+                <button data-batch="3">3</button>
+                <button data-batch="5" class="active">5</button>
+                <button data-batch="10">10</button>
+              </div>
+            </div>
+            <div class="metric-row" style="margin-top:16px;">
+              <div class="metric"><b id="opWaiting">0</b><span>Waiting</span></div>
+              <div class="metric"><b id="opCalled">0</b><span>Called</span></div>
+              <div class="metric"><b id="servedToday">0</b><span>Served today</span></div>
+            </div>
+            <div class="actions" style="margin-top:16px;">
+              <button class="primary" id="callNextBtn">CALL NEXT 5</button>
+              <button class="secondary" id="toggleOpenBtn">Open Tuck Shop</button>
+              <button class="quiet" id="pauseBtn">Pause Queue</button>
+            </div>
+          </div>
+
+          <div class="fast-panel">
+            <div class="status-head">
+              <div>
+                <h3 id="calledRange" style="font-size:28px;">No students called</h3>
+                <p style="margin:6px 0 0;color:#cbd0e9;">Fast operator mode</p>
+              </div>
+              <span class="badge yellow" id="countdown">03:00 arrival window</span>
+            </div>
+            <div class="big-controls">
+              <button class="primary" id="serveNextBtn">SERVE NEXT</button>
+              <button class="secondary" id="fastCallBtn">CALL NEXT 5</button>
+              <button class="danger" id="noShowBtn">NO SHOW</button>
+              <button class="quiet" id="fastPauseBtn">PAUSE</button>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="panel">
+              <h3>Add Student By ID Card</h3>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>ID card number<input id="counterId" placeholder="Scan or type ID"></label>
+                <label>Name if new<input id="counterName" placeholder="Optional if already imported"></label>
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="primary" id="counterAddBtn">Add To Queue</button>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Booked Slots Today</h3>
+              <div class="history-list" id="bookingList"></div>
+            </div>
+          </div>
+
+          <div class="panel table-wrap">
+            <h3>Active Queue</h3>
+            <table class="table">
+              <thead><tr><th>Queue</th><th>ID card</th><th>Student</th><th>Joined</th><th>Wait</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="queueTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="pos">
+          <div class="metric-row">
+            <div class="metric good"><b id="posTodayTotal">₹0</b><span>POS sales today</span></div>
+            <div class="metric hot"><b id="posBillCount">0</b><span>Bills today</span></div>
+            <div class="metric warn"><b id="posQueueWaiting">0</b><span>Queue waiting</span></div>
+          </div>
+          <div class="pos-grid">
+            <div class="panel">
+              <div class="toolbar">
+                <div>
+                  <h3>Billing Counter</h3>
+                  <p class="muted" style="margin:6px 0 0;">Scan or type a student card, add items, then charge the student's account.</p>
+                </div>
+                <label style="min-width:170px;">Day menu
+                  <select id="posDay"></select>
+                </label>
+              </div>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>Student ID card<input id="posStudentId" placeholder="TISB1042"></label>
+                <label>Student name<input id="posStudentName" placeholder="Auto-filled if imported"></label>
+              </div>
+              <div class="actions" style="margin-top:12px;">
+                <button class="quiet" id="loadStudentBtn">Load Student</button>
+                <button class="secondary" id="clearCartBtn">Clear Cart</button>
+              </div>
+              <div class="filter-row">
+                <label>Search item<input id="itemSearch" placeholder="Search menu"></label>
+                <label>Category<select id="categoryFilter"><option value="all">All categories</option><option>Daily chips</option><option>Hot food</option><option>Snack</option><option>Drink</option></select></label>
+                <label>Quick report<button class="quiet" id="downloadSalesBtn" type="button">Download Sales</button></label>
+              </div>
+              <div class="item-grid" id="posItems" style="margin-top:18px;"></div>
+            </div>
+
+            <div class="panel">
+              <h3>Current Bill</h3>
+              <div id="cartLines" style="margin-top:12px;"></div>
+              <div class="metric" style="margin-top:12px;">
+                <b id="cartTotal">₹0</b>
+                <span>Total to charge</span>
+              </div>
+              <div class="actions" style="margin-top:12px;">
+                <button class="primary" id="checkoutBtn">Charge Student Account</button>
+                <button class="quiet" id="printBillBtn">Print Bill</button>
+              </div>
+              <div class="receipt" id="receiptPreview" style="margin-top:16px;"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <h3>Shared Counter Controls</h3>
+                <p class="muted" style="margin:6px 0 0;">Available in POS and Operator sections for real counter use.</p>
+              </div>
+              <span class="badge blue" id="sharedQueueState">Queue linked</span>
+            </div>
+            <div class="actions" style="margin-top:16px;">
+              <button class="secondary" id="posToggleOpenBtn">Open Tuck Shop</button>
+              <button class="primary" id="posCallNextBtn">CALL NEXT 5</button>
+              <button class="quiet" id="posServeNextBtn">SERVE NEXT</button>
+              <button class="danger" id="posNoShowBtn">NO SHOW</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="status-head">
+              <h3>Pre-order Pickups</h3>
+              <span class="badge green" id="preorderPickupBadge">0 ready</span>
+            </div>
+            <div class="history-list" id="preorderPickupList" style="margin-top:16px;"></div>
+          </div>
+
+          <div class="panel table-wrap">
+            <div class="status-head">
+              <h3>Today's POS Sales</h3>
+              <span class="badge green" id="todaySalesBadge">₹0</span>
+            </div>
+            <table class="table">
+              <thead><tr><th>Bill</th><th>Time</th><th>ID card</th><th>Student</th><th>Items</th><th>Total</th></tr></thead>
+              <tbody id="salesTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="account">
+          <div class="panel">
+            <div class="status-head">
+              <div>
+                <h3>Student Billing Account</h3>
+                <p class="muted" style="margin:6px 0 0;">Daily, weekly, and monthly spending charged to the student card.</p>
+              </div>
+              <span class="badge blue" id="accountStudentBadge">Student</span>
+            </div>
+            <div class="account-summary" style="margin-top:16px;">
+              <div class="metric"><b id="dailySpend">₹0</b><span>Today, ₹280 max</span></div>
+              <div class="metric"><b id="weeklySpend">₹0</b><span>This week</span></div>
+              <div class="metric"><b id="monthlySpend">₹0</b><span>This month</span></div>
+            </div>
+          </div>
+          <div class="panel table-wrap">
+            <h3>Billing History</h3>
+            <table class="table">
+              <thead><tr><th>Bill</th><th>Date</th><th>Items and per-piece price</th><th>Total</th><th>Bill</th></tr></thead>
+              <tbody id="accountTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="import">
+          <div class="grid">
+            <div class="panel">
+              <h3>Import Students</h3>
+              <p class="muted">Paste one student per line as ID card, name. Example: TISB1042, Aarav Nair</p>
+              <textarea id="importText">TISB1042, Aarav Nair
+TISB1043, Diya Sharma
+TISB1044, Rehan Pillai</textarea>
+              <div class="actions" style="margin-top:12px;">
+                <button class="primary" id="importBtn">Import List</button>
+                <button class="quiet" id="clearImportBtn">Clear Box</button>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Add One Student</h3>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>ID card number<input id="manualId" placeholder="TISB1045"></label>
+                <label>Name<input id="manualName" placeholder="Student name"></label>
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="primary" id="manualAddBtn">Add Student</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="status-head">
+              <h3>Student Roster</h3>
+              <span class="badge blue" id="rosterCount">0 students</span>
+            </div>
+            <div class="roster-list" id="rosterList" style="margin-top:16px;"></div>
+          </div>
+        </section>
+
+        <section class="view" id="admin">
+          <div class="grid">
+            <div class="panel">
+              <h3>TISB Configuration</h3>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>School name<input id="schoolName" value="The International School Bangalore"></label>
+                <label>Allowed email domain<input id="emailDomain" value="@tisb.ac.in"></label>
+                <label>Opening time<input id="openTime" value="3:45 PM"></label>
+                <label>Slot increment<select id="slotIncrement"><option value="10">10 minutes</option><option value="5">5 minutes</option></select></label>
+                <label>Capacity per 10 min slot<input id="slotCapacity" type="number" min="1" max="80" value="18"></label>
+                <label>Arrival window<select id="arrivalWindow"><option>3 minutes</option><option>2 minutes</option><option>5 minutes</option></select></label>
+                <label>Warning threshold<select id="warningThreshold"><option>5 people ahead</option><option>3 people ahead</option><option>10 people ahead</option></select></label>
+                <label>Queue mode<select id="queueMode"><option>Hybrid queue + booking</option><option>Virtual queue only</option><option>Slot booking only</option></select></label>
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="primary" id="saveSettingsBtn">Save Settings</button>
+                <button class="quiet" id="exportBtn">Export All Data</button>
+                <button class="danger" id="resetBtn">Reset Local Data</button>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Pre-opening Booking Rules</h3>
+              <div class="slot-list" style="margin-top:16px;">
+                <div class="slot"><div><strong>After School</strong><span>3:45 PM to 4:45 PM</span></div><span class="badge green">Enabled</span></div>
+                <div class="slot"><div><strong>Slot length</strong><span>5 or 10 minute increments</span></div><span class="badge green">Configurable</span></div>
+                <div class="slot"><div><strong>Early booking</strong><span>Students can book before the tuck shop opens</span></div><span class="badge green">Enabled</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="panel">
+              <h3>Create Student Login</h3>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>ID card number<input id="loginCreateId" placeholder="TISB2050"></label>
+                <label>Student name<input id="loginCreateName" placeholder="Student full name"></label>
+                <label>Class / house<input id="loginCreateClass" placeholder="Grade 9 - Nile"></label>
+                <label>Email<input id="loginCreateEmail" type="email" placeholder="student@tisb.ac.in"></label>
+                <label>Password<input id="loginCreatePassword" autocomplete="new-password" type="password" placeholder="Create password"></label>
+                <label>Monthly account limit ₹<input id="loginCreateLimit" type="number" min="0" value="2500"></label>
+                <label>Status<select id="loginCreateStatus"><option value="active">Active</option><option value="blocked">Blocked</option></select></label>
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="primary" id="createStudentLoginBtn">Create Student Login</button>
+                <button class="quiet" id="prefillLoginBtn">Fill Example</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="status-head">
+                <h3>Student Logins</h3>
+                <span class="badge blue" id="loginCount">0 active</span>
+              </div>
+              <div class="roster-list" id="loginList" style="margin-top:16px;"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="status-head">
+              <div>
+                <p class="section-label">School Admin Reports</p>
+                <h3>Downloadable Reports</h3>
+              </div>
+              <span class="badge green" id="reportStatus">Ready</span>
+            </div>
+            <div class="report-grid" style="margin-top:16px;">
+              <div class="report-card"><div><strong>Daily POS Sales</strong><span>Bill number, time, card ID, student, items and totals.</span></div><button class="quiet" id="reportSalesBtn">Download CSV</button></div>
+              <div class="report-card"><div><strong>Student Ledger</strong><span>Student-wise daily, weekly, monthly and limit balance.</span></div><button class="quiet" id="reportLedgerBtn">Download CSV</button></div>
+              <div class="report-card"><div><strong>Inventory</strong><span>Day-wise POS catalogue, price, category and live stock.</span></div><button class="quiet" id="reportInventoryBtn">Download CSV</button></div>
+              <div class="report-card"><div><strong>Queue & Bookings</strong><span>Active queue state, booked slots and attendance actions.</span></div><button class="quiet" id="reportQueueBtn">Download CSV</button></div>
+            </div>
+          </div>
+          <div class="panel table-wrap">
+            <div class="status-head">
+              <div>
+                <p class="section-label">Automatic Emails</p>
+                <h3>Email Outbox</h3>
+              </div>
+              <div class="actions">
+                <span class="badge blue" id="mailCount">0 queued</span>
+                <button class="quiet" id="reportMailBtn">Download Mail Log</button>
+              </div>
+            </div>
+            <table class="table">
+              <thead><tr><th>Time</th><th>To</th><th>Subject</th><th>Status</th></tr></thead>
+              <tbody id="mailTable"></tbody>
+            </table>
+          </div>
+          <div class="grid">
+            <div class="panel">
+              <h3>Add POS Menu Item</h3>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>Day<select id="newItemDay"></select></label>
+                <label>Category<select id="newItemCategory"><option>Hot food</option><option>Snack</option><option>Drink</option><option>Daily chips</option></select></label>
+                <label>Item name<input id="newItemName" placeholder="Example: Masala Chips"></label>
+                <label>Price ₹<input id="newItemPrice" type="number" min="1" value="40"></label>
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="primary" id="addItemBtn">Add Item</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="status-head">
+                <h3>POS Catalogue</h3>
+                <span class="badge blue" id="catalogueCount">0 items</span>
+              </div>
+              <div class="roster-list" id="catalogueList" style="margin-top:16px;"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <div id="history" hidden></div>
+  <div class="bill-modal" id="billModal" aria-hidden="true">
+    <div class="bill-sheet">
+      <div class="status-head">
+        <h3>Online Bill</h3>
+        <button class="quiet" id="closeBillBtn" type="button">Close</button>
+      </div>
+      <div class="receipt" id="billModalBody"></div>
+      <div class="actions">
+        <button class="primary" id="downloadOpenBillBtn" type="button">Download Bill</button>
+        <button class="quiet" id="printOpenBillBtn" type="button">Print</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE = "tisb-queless-state-v3";
+    const LEGACY_STORAGE = "tisb-queless-state-v1";
+    const DAILY_PURCHASE_LIMIT = 280;
+    const DEFAULT_STUDENTS = [
+      { id: "TISB1042", name: "Aarav Nair", className: "Grade 9 - Nile", email: "tisb1042@tisb.ac.in", password: "student1042", accountLimit: 2500, status: "active" },
+      { id: "TISB1043", name: "Diya Sharma", className: "Grade 8 - Cauvery", email: "tisb1043@tisb.ac.in", password: "student1043", accountLimit: 2500, status: "active" },
+      { id: "TISB1044", name: "Rehan Pillai", className: "Grade 10 - Ganga", email: "tisb1044@tisb.ac.in", password: "student1044", accountLimit: 3000, status: "active" },
+      { id: "TISB1045", name: "Anika Rao", className: "Grade 7 - Yamuna", email: "tisb1045@tisb.ac.in", password: "student1045", accountLimit: 2200, status: "active" },
+      { id: "TISB1046", name: "Kabir Menon", className: "Grade 11 - Nile", email: "tisb1046@tisb.ac.in", password: "student1046", accountLimit: 3500, status: "active" },
+      { id: "TISB1047", name: "Maya Iyer", className: "Grade 6 - Cauvery", email: "tisb1047@tisb.ac.in", password: "student1047", accountLimit: 2000, status: "active" }
+    ];
+
+    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const DEFAULT_CATALOGUE = [
+      { id: "chips-classic", day: "Everyday", name: "Chips", category: "Daily chips", price: 30, stock: 80 },
+      { id: "chips-masala", day: "Everyday", name: "Masala Chips", category: "Daily chips", price: 35, stock: 60 },
+      { id: "mon-toast", day: "Monday", name: "Chicken Cheese Toast", category: "Hot food", price: 95, stock: 35 },
+      { id: "mon-manchurian", day: "Monday", name: "Chicken Manchurian", category: "Hot food", price: 120, stock: 30 },
+      { id: "mon-samosa-chat", day: "Monday", name: "Samosa Chat", category: "Snack", price: 70, stock: 45 },
+      { id: "tue-noodles-veg", day: "Tuesday", name: "Chinese Veg Noodles", category: "Hot food", price: 90, stock: 40 },
+      { id: "tue-noodles-chicken", day: "Tuesday", name: "Chinese Chicken Noodles", category: "Hot food", price: 115, stock: 35 },
+      { id: "tue-veg-manchurian", day: "Tuesday", name: "Mix Veg Manchurian", category: "Hot food", price: 100, stock: 35 },
+      { id: "wed-roll", day: "Wednesday", name: "Vegetable And Paneer Khatti Roll", category: "Hot food", price: 105, stock: 40 },
+      { id: "wed-sandwich", day: "Wednesday", name: "Vegetable Grilled Sandwich", category: "Snack", price: 85, stock: 45 },
+      { id: "wed-juice", day: "Wednesday", name: "Seasonal Fresh Juice (250 ml)", category: "Drink", price: 60, stock: 50 },
+      { id: "thu-spring-veg", day: "Thursday", name: "Veg Spring Roll", category: "Snack", price: 80, stock: 40 },
+      { id: "thu-spring-chicken", day: "Thursday", name: "Chicken Spring Roll", category: "Snack", price: 95, stock: 35 },
+      { id: "thu-rice", day: "Thursday", name: "Chicken Fried Rice", category: "Hot food", price: 115, stock: 35 },
+      { id: "fri-65", day: "Friday", name: "Chicken '65", category: "Hot food", price: 125, stock: 35 },
+      { id: "fri-paneer", day: "Friday", name: "Malai Paneer Tikka", category: "Hot food", price: 115, stock: 35 },
+      { id: "fri-enchiladas", day: "Friday", name: "Veg Enchiladas", category: "Hot food", price: 120, stock: 30 },
+      { id: "sat-fries", day: "Saturday", name: "French Fries", category: "Snack", price: 75, stock: 50 },
+      { id: "sat-sandwich", day: "Saturday", name: "Chicken Grilled Sandwich", category: "Snack", price: 105, stock: 35 },
+      { id: "sat-momos-chicken", day: "Saturday", name: "Chicken Momos", category: "Snack", price: 100, stock: 40 },
+      { id: "sat-momos-veg", day: "Saturday", name: "Veg Momos", category: "Snack", price: 85, stock: 40 },
+      { id: "sun-tikka", day: "Sunday", name: "Afghani Chicken Tikka", category: "Hot food", price: 135, stock: 30 },
+      { id: "sun-momo-veg", day: "Sunday", name: "Veg Schezwan Momo", category: "Snack", price: 95, stock: 35 },
+      { id: "sun-momo-chicken", day: "Sunday", name: "Chicken Schezwan Momo", category: "Snack", price: 110, stock: 35 },
+      { id: "daily-lemon", day: "Everyday", name: "Lemon Juice (250 ml)", category: "Drink", price: 45, stock: 60 },
+      { id: "daily-coffee", day: "Everyday", name: "Coffee (120 ml)", category: "Drink", price: 40, stock: 70 },
+      { id: "daily-popcorn", day: "Everyday", name: "Popcorn (60 gms)", category: "Snack", price: 50, stock: 60 },
+      { id: "daily-corn", day: "Everyday", name: "Steam Corn (80 gms)", category: "Snack", price: 55, stock: 50 }
+    ];
+
+    const initialState = {
+      user: null,
+      open: false,
+      paused: false,
+      batch: 5,
+      slotIncrement: 10,
+      slotCapacity: 18,
+      nextNumber: 36,
+      served: 214,
+      myTicket: null,
+      bookings: [],
+      queue: [],
+      students: DEFAULT_STUDENTS,
+      catalogue: DEFAULT_CATALOGUE,
+      selectedPosDay: new Date().toLocaleDateString("en-US", { weekday: "long" }),
+      cart: [],
+      preorderDay: new Date().toLocaleDateString("en-US", { weekday: "long" }),
+      preorderCart: [],
+      preorders: [],
+      sales: [],
+      mailOutbox: [],
+      lastReceipt: null,
+      history: ["Booked After School 3:45-3:55 PM", "Almost your turn warning sent", "Served yesterday at 4:18 PM"]
+    };
+
+    let state = loadState();
+    let selectedPortal = "student";
+    const $ = (id) => document.getElementById(id);
+    const safe = (fn, label = "Action") => {
+      try {
+        return fn();
+      } catch (error) {
+        console.error(label, error);
+        const message = `${label} failed: ${error.message}`;
+        const toastEl = $("toast");
+        if (toastEl) {
+          toastEl.textContent = message;
+          toastEl.classList.add("show");
+        } else {
+          alert(message);
+        }
+      }
+    };
+    const setText = (id, value) => {
+      const el = $(id);
+      if (el) el.textContent = value;
+    };
+    const setHtml = (id, value) => {
+      const el = $(id);
+      if (el) el.innerHTML = value;
+    };
+    const SERVER_MODE = ["http:", "https:"].includes(location.protocol);
+    let saveTimer = null;
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE) || "null");
+        if (saved) return normalizeState(saved);
+      } catch {
+        localStorage.removeItem(STORAGE);
+      }
+      localStorage.removeItem(LEGACY_STORAGE);
+      return normalizeState(clone(initialState));
+    }
+
+    function normalizeState(source) {
+      const merged = { ...clone(initialState), ...source };
+      merged.students = Array.isArray(source.students) && source.students.length ? source.students : DEFAULT_STUDENTS;
+      DEFAULT_STUDENTS.forEach(defaultStudent => {
+        if (!merged.students.some(student => student.id === defaultStudent.id)) merged.students.push(clone(defaultStudent));
+      });
+      merged.students = merged.students.map(student => ({
+        ...student,
+        className: student.className || "Unassigned",
+        email: student.email || `${student.id.toLowerCase()}@tisb.ac.in`,
+        password: String(student.password || student.pin || `student${student.id.slice(-4)}`),
+        accountLimit: Number(student.accountLimit) || 2500,
+        status: student.status || "active"
+      }));
+      merged.bookings = Array.isArray(source.bookings) ? source.bookings : [];
+      merged.queue = Array.isArray(source.queue) ? source.queue : [];
+      merged.history = Array.isArray(source.history) ? source.history : initialState.history;
+      merged.catalogue = Array.isArray(source.catalogue) && source.catalogue.length ? source.catalogue : DEFAULT_CATALOGUE;
+      merged.cart = Array.isArray(source.cart) ? source.cart : [];
+      merged.preorderDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
+      merged.preorderCart = Array.isArray(source.preorderCart) ? source.preorderCart : [];
+      merged.preorders = Array.isArray(source.preorders) ? source.preorders : [];
+      merged.sales = Array.isArray(source.sales) ? source.sales : [];
+      merged.mailOutbox = Array.isArray(source.mailOutbox) ? source.mailOutbox : [];
+      merged.lastReceipt = source.lastReceipt || null;
+      merged.selectedPosDay = DAYS.includes(source.selectedPosDay) ? source.selectedPosDay : initialState.selectedPosDay;
+      merged.slotIncrement = Number(source.slotIncrement) || 10;
+      merged.slotCapacity = Number(source.slotCapacity) || 18;
+      merged.nextNumber = Number(source.nextNumber) || 36;
+      merged.bookings.forEach(booking => {
+        if (!booking.ticket) {
+          booking.ticket = merged.nextNumber++;
+          if (!merged.queue.some(q => q.number === booking.ticket || (q.id === booking.id && q.status === "BOOKED"))) {
+            merged.queue.push({ number: booking.ticket, id: booking.id, name: booking.name, joined: booking.slot, wait: "Booked slot", status: "BOOKED", slot: booking.slot });
+          }
+        }
+      });
+      return merged;
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE, JSON.stringify(state));
+      if (SERVER_MODE) syncStateToServer();
+    }
+
+    async function loadServerState() {
+      if (!SERVER_MODE) return;
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        const result = await response.json();
+        if (result.ok && result.state) {
+          state = normalizeState(result.state);
+          localStorage.setItem(STORAGE, JSON.stringify(state));
+        } else {
+          await fetch("/api/state", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ state })
+          });
+        }
+      } catch (error) {
+        console.warn("Server sync unavailable:", error);
+      }
+    }
+
+    function syncStateToServer() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        fetch("/api/state", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ state })
+        }).catch(error => console.warn("Could not save to server:", error));
+      }, 250);
+    }
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function toast(message) {
+      $("toast").textContent = message;
+      $("toast").classList.add("show");
+      setTimeout(() => $("toast").classList.remove("show"), 2800);
+    }
+
+    function showScreen(screen) {
+      document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
+      $(screen).classList.add("active");
+    }
+
+    function formatMinutes(totalMinutes) {
+      const hours24 = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      const suffix = hours24 >= 12 ? "PM" : "AM";
+      const hours12 = ((hours24 + 11) % 12) + 1;
+      return `${hours12}:${String(minutes).padStart(2, "0")} ${suffix}`;
+    }
+
+    function buildSlots() {
+      const start = 15 * 60 + 45;
+      const end = 16 * 60 + 45;
+      const increment = Number(state.slotIncrement) || 10;
+      const baseCapacity = Number(state.slotCapacity) || 18;
+      const capacity = increment === 5 ? Math.ceil(baseCapacity / 2) : baseCapacity;
+      const list = [];
+      for (let time = start; time < end; time += increment) {
+        const window = `${formatMinutes(time)}-${formatMinutes(time + increment)}`;
+        const used = state.bookings.filter(booking => booking.slot === window).length;
+        list.push({ name: "After School", window, capacity, used, left: Math.max(0, capacity - used) });
+      }
+      return list;
+    }
+
+    function initials(name) {
+      return name.split(/\s+/).filter(Boolean).map(part => part[0]).join("").slice(0, 2).toUpperCase() || "ST";
+    }
+
+    function activeStudent() {
+      if (!state.user) return null;
+      return state.students.find(student => student.id === state.user.id) || { id: state.user.id, name: state.user.name };
+    }
+
+    function findStudent(id) {
+      return state.students.find(student => student.id.toLowerCase() === id.toLowerCase());
+    }
+
+    function addOrUpdateStudent(id, name, details = {}) {
+      const cleanId = id.trim().toUpperCase();
+      const cleanName = name.trim().replace(/\s+/g, " ");
+      if (!cleanId || !cleanName) return { ok: false, reason: "Both ID card and name are required." };
+      if (cleanId.length < 4) return { ok: false, reason: "ID card number looks too short." };
+      const existing = findStudent(cleanId);
+      if (existing) {
+        existing.name = cleanName;
+        existing.className = details.className || existing.className || "Unassigned";
+        existing.email = details.email || existing.email || `${cleanId.toLowerCase()}@tisb.ac.in`;
+        existing.password = String(details.password || existing.password || existing.pin || `student${cleanId.slice(-4)}`);
+        existing.accountLimit = Number(details.accountLimit ?? existing.accountLimit ?? 2500);
+        existing.status = details.status || existing.status || "active";
+        return { ok: true, updated: true, student: existing };
+      }
+      const student = {
+        id: cleanId,
+        name: cleanName,
+        className: details.className || "Unassigned",
+        email: details.email || `${cleanId.toLowerCase()}@tisb.ac.in`,
+        password: String(details.password || `student${cleanId.slice(-4)}`),
+        accountLimit: Number(details.accountLimit) || 2500,
+        status: details.status || "active"
+      };
+      state.students.push(student);
+      return { ok: true, updated: false, student };
+    }
+
+    function portalCopy(role) {
+      const copy = {
+        student: {
+          title: "Student Portal Login",
+          subtitle: "Book slots, join the queue, and view your tuck shop account.",
+          button: "Enter Student Portal",
+          hint: "Student access uses the ID card number and password created by Admin.",
+          badge: "Student access",
+          idPlaceholder: "Example: TISB1042",
+          namePlaceholder: "Student name"
+        },
+        operator: {
+          title: "POS Portal Login",
+          subtitle: "Counter billing, card lookup, receipts, and queue calling.",
+          button: "Enter POS Portal",
+          hint: "Use the POS staff ID and password.",
+          badge: "POS staff access",
+          idPlaceholder: "Example: STAFF01",
+          namePlaceholder: "Staff name"
+        },
+        admin: {
+          title: "Admin Portal Login",
+          subtitle: "Create student logins, manage POS menu, reports, and settings.",
+          button: "Enter Admin Portal",
+          hint: "Use the school admin ID and password.",
+          badge: "School admin access",
+          idPlaceholder: "Example: ADMIN01",
+          namePlaceholder: "Admin name"
+        }
+      };
+      return copy[role];
+    }
+
+    function openPortal(role) {
+      selectedPortal = role;
+      const copy = portalCopy(role);
+      $("loginRole").value = role;
+      $("loginTitle").textContent = copy.title;
+      $("loginSubtitle").textContent = copy.subtitle;
+      $("loginSubmitBtn").textContent = copy.button;
+      $("loginHint").textContent = copy.hint;
+      $("loginBadge").textContent = copy.badge;
+      $("loginId").placeholder = copy.idPlaceholder;
+      $("loginName").placeholder = copy.namePlaceholder;
+      $("loginId").value = "";
+      $("loginName").value = "";
+      $("loginPassword").value = "";
+      showScreen("loginScreen");
+    }
+
+    function badge(status) {
+      const tone = status === "CALLED" ? "yellow" : status === "SERVED" ? "green" : status === "NO SHOW" || status === "MISSED" ? "red" : "blue";
+      return `<span class="badge ${tone}">${status}</span>`;
+    }
+
+    function money(value) {
+      return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+    }
+
+    function todayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function billNumber() {
+      return `TISB-${todayKey().replace(/-/g, "")}-${String(state.sales.length + 1).padStart(4, "0")}`;
+    }
+
+    function dayItems(day = state.selectedPosDay) {
+      return state.catalogue.filter(item => item.day === "Everyday" || item.day === day);
+    }
+
+    function saleTotal(sale) {
+      return sale.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    }
+
+    function salesForStudent(id) {
+      return state.sales.filter(sale => sale.studentId === id);
+    }
+
+    function dailySpendFor(id) {
+      return salesForStudent(id)
+        .filter(sale => sale.date === todayKey())
+        .reduce((sum, sale) => sum + saleTotal(sale), 0);
+    }
+
+    function monthlySpendFor(id) {
+      const prefix = todayKey().slice(0, 7);
+      return salesForStudent(id)
+        .filter(sale => sale.date.startsWith(prefix))
+        .reduce((sum, sale) => sum + saleTotal(sale), 0);
+    }
+
+    function queueEmail(student, subject, body, type = "queue") {
+      if (!student?.email) return;
+      const duplicate = state.mailOutbox.some(mail =>
+        mail.to === student.email &&
+        mail.subject === subject &&
+        mail.date === todayKey() &&
+        mail.type === type
+      );
+      if (duplicate) return;
+      const mail = {
+        id: `MAIL-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+        date: todayKey(),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        to: student.email,
+        studentId: student.id,
+        studentName: student.name,
+        subject,
+        body,
+        type,
+        status: SERVER_MODE ? "Sending" : "Queued"
+      };
+      state.mailOutbox.unshift(mail);
+      sendQueuedEmail(mail);
+    }
+
+    async function sendQueuedEmail(mail) {
+      if (!SERVER_MODE) return;
+      try {
+        const response = await fetch("/api/mail", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ message: mail })
+        });
+        const result = await response.json();
+        mail.status = result.status || (result.sent ? "Sent" : "Draft");
+        mail.reason = result.reason || "";
+      } catch (error) {
+        mail.status = "Failed";
+        mail.reason = error.message;
+      }
+      save();
+      renderMailOutbox();
+    }
+
+    function maybeSendAlmostWarnings() {
+      const waiting = state.queue.filter(q => ["WAITING", "BOOKED"].includes(q.status));
+      const threshold = parseInt($("warningThreshold")?.value || "5", 10) || 5;
+      waiting.forEach((entry, index) => {
+        const peopleAhead = index;
+        if (peopleAhead <= threshold && peopleAhead > 0) {
+          const student = findStudent(entry.id);
+          queueEmail(
+            student,
+            "TISB Tuck Shop: Almost your turn",
+            `Hi ${entry.name}, only ${peopleAhead} student${peopleAhead === 1 ? "" : "s"} are ahead of you in the tuck shop queue. Please start heading towards the tuck shop.`,
+            `almost-${entry.number}`
+          );
+        }
+      });
+    }
+
+    function inThisWeek(dateText) {
+      const date = new Date(dateText);
+      const now = new Date();
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+      return date >= start;
+    }
+
+    function setView(view) {
+      document.querySelectorAll(".nav-btn, .view").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(`.nav-btn[data-view="${view}"]`).forEach(btn => btn.classList.add("active"));
+      $(view).classList.add("active");
+      $("pageTitle").textContent = view === "student" ? "Student Tuck Shop" : view === "operator" ? "Operator Counter" : view === "pos" ? "POS Billing" : view === "account" ? "Student Account" : view === "import" ? "Import Students" : "School Admin";
+    }
+
+    function applyRoleAccess() {
+      const role = state.user?.role || "student";
+      document.querySelectorAll(".nav-btn").forEach(btn => {
+        btn.style.display = btn.dataset.roles.includes(role) ? "grid" : "none";
+      });
+      const preferred = role === "admin" ? "admin" : role === "operator" ? "pos" : "student";
+      setView(preferred);
+    }
+
+    function render() {
+      const waiting = state.queue.filter(q => q.status === "WAITING");
+      const called = state.queue.filter(q => q.status === "CALLED");
+      const student = activeStudent();
+      const openText = state.open ? (state.paused ? "Paused for counter reset" : "Tuck Shop Open") : "Opening soon: 3:45 PM";
+
+      $("openLabel").textContent = openText;
+      $("stateDot").style.background = state.open && !state.paused ? "var(--green)" : "var(--yellow)";
+      $("shopStatus").textContent = state.open ? "Tuck Shop Open" : "Tuck Shop Closed";
+      $("shopCopy").textContent = state.open ? "Join the live queue now or reserve a later slot." : "Bookings are open for 3:45-4:45 PM before service starts.";
+      $("studentBadge").textContent = state.open ? "Live queue active" : "Pre-open booking";
+      $("waitMetric").textContent = waiting.length ? `~${Math.max(3, waiting.length * 2)}m` : "~3m";
+      $("waitingMetric").textContent = waiting.length;
+      $("callingMetric").textContent = called.length ? `#${called[0].number}-#${called[called.length - 1].number}` : "None";
+      $("opWaiting").textContent = waiting.length;
+      $("opCalled").textContent = called.length;
+      $("servedToday").textContent = state.served;
+      $("callNextBtn").textContent = `CALL NEXT ${state.batch}`;
+      $("fastCallBtn").textContent = `CALL NEXT ${state.batch}`;
+      $("toggleOpenBtn").textContent = state.open ? "Close Tuck Shop" : "Open Tuck Shop";
+      $("pauseBtn").textContent = state.paused ? "Resume Queue" : "Pause Queue";
+      $("fastPauseBtn").textContent = state.paused ? "RESUME" : "PAUSE";
+      $("calledRange").textContent = called.length ? `#${called[0].number} - #${called[called.length - 1].number} CALLED` : "No students called";
+      $("userLine").textContent = state.user ? `${state.user.name} (${state.user.id}) - ${state.user.role}` : "NAFL Valley, Whitefield-Sarjapur Road, Bengaluru";
+      $("slotIncrement").value = String(state.slotIncrement);
+      $("slotCapacity").value = String(state.slotCapacity);
+      $("joinBtn").disabled = !state.open || state.paused;
+      $("slotStatusBadge").textContent = "3:45-4:45 PM";
+      const welcomeStudent = student || state.students[0];
+      const dailyLeft = welcomeStudent ? Math.max(0, DAILY_PURCHASE_LIMIT - dailySpendFor(welcomeStudent.id)) : DAILY_PURCHASE_LIMIT;
+      const monthlyLeft = welcomeStudent ? Math.max(0, (welcomeStudent.accountLimit || 2500) - monthlySpendFor(welcomeStudent.id)) : 0;
+      setText("welcomeName", `Welcome, ${welcomeStudent?.name || "Student"}`);
+      setText("welcomeMeta", welcomeStudent ? `${welcomeStudent.className || "TISB"} - ${welcomeStudent.id} - ${money(monthlySpendFor(welcomeStudent.id))} this month` : "Book slots, pre-order, and show your online bill at pickup.");
+      setText("welcomeLimit", money(dailyLeft));
+      setText("welcomeMonthlyLeft", money(monthlyLeft));
+      setText("welcomeStatus", state.open ? "Live queue active" : "Pre-open booking active");
+
+      const myQueueEntry = student ? state.queue.find(q => q.id === student.id) : state.myTicket;
+      state.myTicket = myQueueEntry || null;
+      renderTicket(myQueueEntry);
+      renderSlots(student);
+      renderMenu();
+      renderPreorder(student);
+      renderHistory();
+      renderQueue();
+      renderBookings();
+      renderRoster();
+      renderPos();
+      renderPreorderPickups();
+      renderAccount();
+      renderCatalogueAdmin();
+      renderStudentLogins();
+      renderMailOutbox();
+      save();
+    }
+
+    function renderTicket(ticket) {
+      if (!ticket) {
+        $("ticketCard").style.display = "none";
+        return;
+      }
+      const waiting = state.queue.filter(q => ["WAITING", "BOOKED"].includes(q.status));
+      const position = waiting.findIndex(q => q.number === ticket.number) + 1;
+      $("ticketCard").style.display = "block";
+      $("ticketCard").className = ticket.status === "CALLED" ? "panel called" : "panel";
+      $("ticketNumber").textContent = `#${ticket.number}`;
+      $("ticketState").textContent = ticket.status;
+      $("ticketTitle").textContent = ticket.status === "CALLED" ? "You're up." : ticket.status === "BOOKED" ? "Slot ticket ready." : "You are in.";
+      $("ticketCopy").textContent = ticket.status === "CALLED"
+        ? "Head to the TISB tuck shop within the 3 minute arrival window."
+        : ticket.status === "BOOKED"
+          ? `${ticket.slot || "Booked slot"} is confirmed. Operators can call this ticket when your pickup batch starts.`
+        : `${Math.max(0, position - 1)} people ahead. Estimated wait: ${Math.max(3, position * 2)}-${Math.max(5, position * 2 + 3)} min.`;
+    }
+
+    function renderSlots(student) {
+      const existingBooking = student ? state.bookings.find(booking => booking.id === student.id) : null;
+      $("slots").innerHTML = buildSlots().map(slot => {
+        const full = slot.left <= 0;
+        const bookedByMe = existingBooking?.slot === slot.window;
+        const disabled = full || (existingBooking && !bookedByMe);
+        const label = bookedByMe ? "Cancel" : full ? "Full" : "Book";
+        const tone = full ? "red" : bookedByMe ? "green" : "blue";
+        return `
+          <div class="slot">
+            <div><strong>${slot.name}</strong><span>${slot.window} - ${slot.left}/${slot.capacity} left</span></div>
+            <button class="quiet book-slot" data-slot="${slot.window}" ${disabled ? "disabled" : ""}>${label}</button>
+            <span class="badge ${tone}">${bookedByMe ? "Yours" : full ? "Full" : "Available"}</span>
+          </div>`;
+      }).join("");
+      document.querySelectorAll(".book-slot").forEach(btn => btn.addEventListener("click", () => bookSlot(btn.dataset.slot)));
+    }
+
+    function renderMenu() {
+      $("menu").innerHTML = dayItems().slice(0, 8).map(item => `
+        <div class="menu-item">
+          <div><strong>${item.name}</strong><span>${item.day === "Everyday" ? "Everyday" : state.selectedPosDay} - ${item.category}</span></div>
+          <span class="badge ${item.stock > 10 ? "green" : "yellow"}">${money(item.price)}</span>
+        </div>`).join("");
+    }
+
+    function fillDaySelects() {
+      const options = DAYS.map(day => `<option value="${day}">${day}</option>`).join("");
+      if (!$("posDay").innerHTML) $("posDay").innerHTML = options;
+      if (!$("newItemDay").innerHTML) $("newItemDay").innerHTML = `<option value="Everyday">Everyday</option>${options}`;
+      $("posDay").value = state.selectedPosDay;
+    }
+
+    function renderPreorder(student) {
+      fillDaySelects();
+      state.preorderDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
+      setText("preorderDayLabel", `${state.preorderDay} menu only`);
+      const items = dayItems(state.preorderDay);
+      $("preorderItems").innerHTML = items.map(item => `
+        <button class="item-btn preorder-item" data-id="${item.id}" ${item.stock <= 0 ? "disabled" : ""}>
+          <strong>${item.name}</strong>
+          <span>${item.category} - ${money(item.price)} - Stock ${item.stock}</span>
+        </button>`).join("");
+      document.querySelectorAll(".preorder-item").forEach(btn => btn.addEventListener("click", () => addToPreorder(btn.dataset.id)));
+
+      $("preorderCart").innerHTML = state.preorderCart.map(line => `
+        <div class="cart-line">
+          <div><strong>${line.name}</strong><span class="muted">${money(line.price)} each</span></div>
+          <div class="actions">
+            <button class="quiet preorder-qty" data-id="${line.id}" data-delta="-1">-</button>
+            <span>${line.qty}</span>
+            <button class="quiet preorder-qty" data-id="${line.id}" data-delta="1">+</button>
+          </div>
+          <strong>${money(line.price * line.qty)}</strong>
+        </div>`).join("") || `<p class="muted">No pre-order items selected yet.</p>`;
+      document.querySelectorAll(".preorder-qty").forEach(btn => btn.addEventListener("click", () => changePreorderQty(btn.dataset.id, Number(btn.dataset.delta))));
+      $("preorderTotal").textContent = money(state.preorderCart.reduce((sum, line) => sum + line.price * line.qty, 0));
+
+      const bills = student ? state.sales.filter(sale => sale.studentId === student.id).slice().reverse().slice(0, 6) : [];
+      $("studentBills").innerHTML = bills.map(sale => `
+        <div class="pickup-bill">
+          <div><strong>${sale.billNo}</strong><span class="badge ${sale.channel === "Pre-order" ? "green" : "blue"}">${sale.channel || "POS bill"}</span></div>
+          <span class="bill-text">${sale.date} ${sale.time}<br>${sale.items.map(item => `${item.qty}x ${item.name}`).join(", ")}<br><b>${money(saleTotal(sale))}</b></span>
+          <span class="muted">${sale.channel === "Pre-order" ? "Show this bill number at pickup." : "Billed at POS counter."}</span>
+          <div class="actions">
+            <button class="quiet view-bill" data-bill="${sale.billNo}">View Bill</button>
+            <button class="secondary download-bill" data-bill="${sale.billNo}">Download</button>
+          </div>
+        </div>`).join("") || `<div class="history-item"><div><strong>No bills yet</strong><span>Pre-orders and POS purchases will appear here.</span></div></div>`;
+      document.querySelectorAll(".view-bill").forEach(btn => btn.addEventListener("click", () => viewBill(btn.dataset.bill)));
+      document.querySelectorAll(".download-bill").forEach(btn => btn.addEventListener("click", () => downloadBill(btn.dataset.bill)));
+    }
+
+    function renderPos() {
+      fillDaySelects();
+      const todaySales = state.sales.filter(sale => sale.date === todayKey());
+      const todayTotal = todaySales.reduce((sum, sale) => sum + saleTotal(sale), 0);
+      const waiting = state.queue.filter(q => q.status === "WAITING").length;
+      $("posTodayTotal").textContent = money(todayTotal);
+      $("posBillCount").textContent = todaySales.length;
+      $("posQueueWaiting").textContent = waiting;
+      $("sharedQueueState").textContent = state.open ? (state.paused ? "Queue paused" : "Queue open") : "Queue closed";
+      $("posToggleOpenBtn").textContent = state.open ? "Close Tuck Shop" : "Open Tuck Shop";
+      $("posCallNextBtn").textContent = `CALL NEXT ${state.batch}`;
+
+      const search = $("itemSearch").value.trim().toLowerCase();
+      const category = $("categoryFilter").value;
+      const items = dayItems().filter(item => {
+        const matchesSearch = !search || item.name.toLowerCase().includes(search) || item.category.toLowerCase().includes(search);
+        const matchesCategory = category === "all" || item.category === category;
+        return matchesSearch && matchesCategory;
+      });
+      $("posItems").innerHTML = items.map(item => `
+        <button class="item-btn pos-item" data-id="${item.id}" ${item.stock <= 0 ? "disabled" : ""}>
+          <strong>${item.name}</strong>
+          <span>${item.category} - ${money(item.price)} - Stock ${item.stock}</span>
+        </button>`).join("");
+      document.querySelectorAll(".pos-item").forEach(btn => btn.addEventListener("click", () => addToCart(btn.dataset.id)));
+
+      $("cartLines").innerHTML = state.cart.map(line => `
+        <div class="cart-line">
+          <div><strong>${line.name}</strong><span class="muted">${money(line.price)} each</span></div>
+          <div class="actions">
+            <button class="quiet qty-btn" data-id="${line.id}" data-delta="-1">-</button>
+            <span>${line.qty}</span>
+            <button class="quiet qty-btn" data-id="${line.id}" data-delta="1">+</button>
+          </div>
+          <strong>${money(line.price * line.qty)}</strong>
+        </div>`).join("") || `<p class="muted">No items added yet.</p>`;
+      document.querySelectorAll(".qty-btn").forEach(btn => btn.addEventListener("click", () => changeCartQty(btn.dataset.id, Number(btn.dataset.delta))));
+      $("cartTotal").textContent = money(state.cart.reduce((sum, line) => sum + line.price * line.qty, 0));
+      $("receiptPreview").innerHTML = receiptHtml(state.lastReceipt);
+
+      $("todaySalesBadge").textContent = money(todayTotal);
+      $("salesTable").innerHTML = todaySales.slice().reverse().map(sale => `
+        <tr>
+          <td>${sale.billNo}</td>
+          <td>${sale.time}</td>
+          <td>${sale.studentId}</td>
+          <td>${sale.studentName}</td>
+          <td>${sale.items.map(item => `${item.qty}x ${item.name}`).join(", ")}</td>
+          <td>${money(saleTotal(sale))}</td>
+        </tr>`).join("") || `<tr><td colspan="6">No POS bills yet today.</td></tr>`;
+    }
+
+    function renderAccount() {
+      const student = activeStudent() || state.students[0];
+      const sales = student ? salesForStudent(student.id) : [];
+      const today = todayKey();
+      const daily = dailySpendFor(student.id);
+      const weekly = sales.filter(sale => inThisWeek(sale.iso)).reduce((sum, sale) => sum + saleTotal(sale), 0);
+      const monthlyPrefix = today.slice(0, 7);
+      const monthly = sales.filter(sale => sale.date.startsWith(monthlyPrefix)).reduce((sum, sale) => sum + saleTotal(sale), 0);
+      $("accountStudentBadge").textContent = student ? `${student.name} - ${student.id} - ${money(DAILY_PURCHASE_LIMIT - daily)} left today` : "No student";
+      $("dailySpend").textContent = money(daily);
+      $("weeklySpend").textContent = money(weekly);
+      $("monthlySpend").textContent = money(monthly);
+      $("accountTable").innerHTML = sales.slice().reverse().map(sale => `
+        <tr>
+          <td>${sale.billNo}</td>
+          <td>${sale.date} ${sale.time}</td>
+          <td>${sale.items.map(item => `<div class="bill-text">${item.qty} x ${item.name} @ ${money(item.price)} each = ${money(item.qty * item.price)}</div>`).join("")}</td>
+          <td>${money(saleTotal(sale))}</td>
+          <td><div class="actions"><button class="quiet account-view-bill" data-bill="${sale.billNo}">View</button><button class="secondary account-download-bill" data-bill="${sale.billNo}">Download</button></div></td>
+        </tr>`).join("") || `<tr><td colspan="5">No billing history for this student yet.</td></tr>`;
+      document.querySelectorAll(".account-view-bill").forEach(btn => btn.addEventListener("click", () => viewBill(btn.dataset.bill)));
+      document.querySelectorAll(".account-download-bill").forEach(btn => btn.addEventListener("click", () => downloadBill(btn.dataset.bill)));
+    }
+
+    function renderPreorderPickups() {
+      const ready = state.preorders.filter(order => order.status !== "PICKED_UP");
+      $("preorderPickupBadge").textContent = `${ready.length} ready`;
+      $("preorderPickupList").innerHTML = ready.slice(0, 12).map(order => `
+        <div class="history-item">
+          <div><strong>${order.billNo}</strong><span>${order.studentName} - ${order.studentId} - ${order.pickupSlot} - ${money(order.total)}</span></div>
+          <button class="quiet pickup-btn" data-bill="${order.billNo}">Mark picked up</button>
+        </div>`).join("") || `<div class="history-item"><div><strong>No pre-orders waiting</strong><span>Confirmed student pre-orders will appear here.</span></div></div>`;
+      document.querySelectorAll(".pickup-btn").forEach(btn => btn.addEventListener("click", () => markPreorderPickedUp(btn.dataset.bill)));
+    }
+
+    function renderCatalogueAdmin() {
+      fillDaySelects();
+      $("catalogueCount").textContent = `${state.catalogue.length} items`;
+      $("catalogueList").innerHTML = state.catalogue.slice(0, 18).map(item => `
+        <div class="student-row">
+          <div><strong>${item.name}</strong><span>${item.day} - ${item.category} - Stock ${item.stock}</span></div>
+          <span class="badge green">${money(item.price)}</span>
+        </div>`).join("");
+    }
+
+    function renderStudentLogins() {
+      const activeCount = state.students.filter(student => student.status !== "blocked").length;
+      $("loginCount").textContent = `${activeCount} active`;
+      $("loginList").innerHTML = state.students.slice(0, 18).map(student => {
+        const monthly = monthlySpendFor(student.id);
+        const daily = dailySpendFor(student.id);
+        const remaining = (student.accountLimit || 2500) - monthly;
+        const dailyRemaining = DAILY_PURCHASE_LIMIT - daily;
+        const tone = student.status === "blocked" ? "red" : dailyRemaining < 50 ? "yellow" : "green";
+        return `
+          <div class="student-row">
+            <div><strong>${student.name}</strong><span>${student.id} - ${student.email} - ${student.className} - password set - ${money(daily)} today / ${money(monthly)} month</span></div>
+            <span class="badge ${tone}">${student.status === "blocked" ? "Blocked" : `${money(dailyRemaining)} today`}</span>
+          </div>`;
+      }).join("");
+    }
+
+    function renderMailOutbox() {
+      $("mailCount").textContent = `${state.mailOutbox.length} queued`;
+      $("mailTable").innerHTML = state.mailOutbox.slice(0, 12).map(mail => `
+        <tr>
+          <td>${mail.date} ${mail.time}</td>
+          <td>${mail.to}</td>
+          <td>${mail.subject}</td>
+          <td>${badge(mail.status || "Queued")}</td>
+        </tr>`).join("") || `<tr><td colspan="4">No email events yet. Queue calls, bookings and billing will create outbox entries.</td></tr>`;
+    }
+
+    function receiptHtml(sale) {
+      if (!sale) {
+        return `<h3>TISB TUCK SHOP</h3><p class="muted" style="text-align:center;">Receipt preview appears after checkout.</p>`;
+      }
+      return `
+        <h3>TISB TUCK SHOP</h3>
+        <div style="text-align:center;font-size:12px;">The International School Bangalore<br>Student Account Bill</div>
+        <div class="receipt-row"><span>Bill No</span><strong>${sale.billNo}</strong></div>
+        <div class="receipt-row"><span>Date</span><span>${sale.date} ${sale.time}</span></div>
+        <div class="receipt-row"><span>ID</span><span>${sale.studentId}</span></div>
+        <div class="receipt-row"><span>Name</span><span>${sale.studentName}</span></div>
+        <div style="border-top:1px dashed #9ca3af;margin:10px 0;"></div>
+        ${sale.items.map(item => `<div class="receipt-row"><span>${item.qty} x ${item.name}</span><span>${money(item.qty * item.price)}</span></div>`).join("")}
+        <div class="receipt-row receipt-total"><span>Total</span><span>${money(saleTotal(sale))}</span></div>
+        <div class="receipt-row"><span>Payment</span><span>Student account</span></div>
+        <div style="text-align:center;font-size:11px;margin-top:12px;">Keep this bill for monthly account reconciliation.</div>`;
+    }
+
+    function renderHistory() {
+      if (!$("history")) return;
+      $("history").innerHTML = state.history.slice(0, 6).map(item => `
+        <div class="history-item"><div><strong>${item}</strong><span>TISB Tuck Shop</span></div></div>`).join("");
+    }
+
+    function renderQueue() {
+      $("queueTable").innerHTML = state.queue.map(q => `
+        <tr>
+          <td>#${q.number}</td>
+          <td>${q.id}</td>
+          <td>${q.name}</td>
+          <td>${q.joined}</td>
+          <td>${q.wait}</td>
+          <td>${badge(q.status)}</td>
+          <td>
+            <button class="quiet row-action" data-action="call" data-number="${q.number}">Call</button>
+            <button class="quiet row-action" data-action="serve" data-number="${q.number}">Serve</button>
+            <button class="danger row-action" data-action="noshow" data-number="${q.number}">No Show</button>
+          </td>
+        </tr>`).join("") || `<tr><td colspan="7">No students in the queue yet.</td></tr>`;
+      document.querySelectorAll(".row-action").forEach(btn => btn.addEventListener("click", () => rowAction(btn.dataset.action, Number(btn.dataset.number))));
+    }
+
+    function renderBookings() {
+      $("bookingList").innerHTML = state.bookings.slice(0, 8).map(booking => `
+        <div class="history-item">
+          <div><strong>#${booking.ticket || "-"} - ${booking.slot}</strong><span>${booking.name} - ${booking.id}</span></div>
+          <span class="badge green">Booked</span>
+        </div>`).join("") || `<div class="history-item"><div><strong>No bookings yet</strong><span>Students can book before opening.</span></div></div>`;
+    }
+
+    function renderRoster() {
+      $("rosterCount").textContent = `${state.students.length} students`;
+      $("rosterList").innerHTML = state.students.slice(0, 20).map(student => `
+        <div class="student-row">
+          <div><strong>${student.name}</strong><span>${student.id}</span></div>
+          <span class="badge blue">${initials(student.name)}</span>
+        </div>`).join("");
+    }
+
+    function requireStudent() {
+      const student = activeStudent();
+      if (!student) {
+        toast("Log in with an ID card and name first.");
+        return null;
+      }
+      return student;
+    }
+
+    function joinQueue() {
+      const student = requireStudent();
+      if (!student) return;
+      if (!state.open || state.paused) return toast("The live queue opens at 3:45 PM. You can book a slot before opening.");
+      if (state.queue.some(q => q.id === student.id && ["BOOKED", "WAITING", "CALLED"].includes(q.status))) return toast("You already have an active queue ticket.");
+      const number = state.nextNumber++;
+      const ticket = { number, id: student.id, name: student.name, joined: "Now", wait: "~6m", status: "WAITING" };
+      state.queue.push(ticket);
+      state.myTicket = ticket;
+      state.history.unshift(`Joined queue #${number}`);
+      render();
+      toast("You're in. Your queue number is ready.");
+    }
+
+    function bookSlot(slotWindow) {
+      const student = requireStudent();
+      if (!student) return;
+      const existing = state.bookings.find(booking => booking.id === student.id);
+      if (existing?.slot === slotWindow) {
+        state.bookings = state.bookings.filter(booking => booking.id !== student.id);
+        state.queue = state.queue.filter(q => !(q.id === student.id && q.status === "BOOKED"));
+        state.history.unshift(`Cancelled booking ${slotWindow}`);
+        render();
+        return toast(`Cancelled ${slotWindow}.`);
+      }
+      if (existing) return toast(`You already booked ${existing.slot}.`);
+      const slot = buildSlots().find(item => item.window === slotWindow);
+      if (!slot || slot.left <= 0) return toast("That slot is full. Pick another time.");
+      const number = state.nextNumber++;
+      state.bookings.push({ id: student.id, name: student.name, slot: slot.window, ticket: number, created: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+      state.queue.push({ number, id: student.id, name: student.name, joined: slot.window, wait: "Booked slot", status: "BOOKED", slot: slot.window });
+      queueEmail(
+        student,
+        "TISB Tuck Shop: Slot booking confirmed",
+        `Hi ${student.name}, your tuck shop slot is confirmed for ${slot.window}. Your queue ticket is #${number}. Please show this number when your batch is called.`,
+        `booking-${slot.window}`
+      );
+      state.history.unshift(`Booked After School ${slot.window}`);
+      render();
+      toast(`Booked ${slot.window}. Ticket #${number} is ready.`);
+    }
+
+    function bookNextSlot() {
+      const next = buildSlots().find(slot => slot.left > 0);
+      if (!next) return toast("All slots are full.");
+      bookSlot(next.window);
+    }
+
+    function leaveQueue() {
+      const student = requireStudent();
+      if (!student) return;
+      const current = state.queue.find(q => q.id === student.id && ["BOOKED", "WAITING", "CALLED"].includes(q.status));
+      if (!current) return toast("No active ticket to leave.");
+      state.queue = state.queue.filter(q => q.id !== student.id);
+      if (current.status === "BOOKED") state.bookings = state.bookings.filter(booking => booking.id !== student.id);
+      state.history.unshift(`Left queue #${current.number}`);
+      state.myTicket = null;
+      render();
+      toast("Queue ticket cancelled.");
+    }
+
+    function callNext() {
+      if (!state.open) return toast("Open the tuck shop first. Bookings still work before opening.");
+      if (state.paused) return toast("Resume the queue before calling students.");
+      const waiting = state.queue.filter(q => ["BOOKED", "WAITING"].includes(q.status)).slice(0, state.batch);
+      waiting.forEach(q => {
+        q.status = "CALLED";
+        const student = findStudent(q.id);
+        queueEmail(
+          student,
+          "TISB Tuck Shop: Your queue number has been called",
+          `Hi ${q.name}, queue #${q.number} has been called. Please come to the tuck shop within the arrival window.`,
+          `called-${q.number}`
+        );
+      });
+      maybeSendAlmostWarnings();
+      state.history.unshift(`Operator called next ${waiting.length || 0}`);
+      render();
+      toast(waiting.length ? "Called students notified in-app and by email." : "No waiting students to call.");
+    }
+
+    function serveNext() {
+      const next = state.queue.find(q => q.status === "CALLED") || state.queue.find(q => ["BOOKED", "WAITING"].includes(q.status));
+      if (!next) return toast("Queue is empty.");
+      state.queue = state.queue.filter(q => q.number !== next.number);
+      if (next.status === "BOOKED") state.bookings = state.bookings.filter(booking => booking.id !== next.id);
+      state.served++;
+      state.history.unshift(`Served queue #${next.number}`);
+      render();
+      toast(`Marked #${next.number} served.`);
+    }
+
+    function rowAction(action, number) {
+      const entry = state.queue.find(q => q.number === number);
+      if (!entry) return;
+      if (action === "call") entry.status = "CALLED";
+      if (action === "serve") {
+        state.queue = state.queue.filter(q => q.number !== number);
+        if (entry.status === "BOOKED") state.bookings = state.bookings.filter(booking => booking.id !== entry.id);
+        state.served++;
+      }
+      if (action === "noshow") entry.status = "NO SHOW";
+      state.history.unshift(`Updated #${number}: ${action}`);
+      render();
+      toast(`Updated #${number}.`);
+    }
+
+    function addCounterStudent() {
+      const id = $("counterId").value.trim().toUpperCase();
+      const typedName = $("counterName").value.trim();
+      const existing = findStudent(id);
+      const name = existing?.name || typedName;
+      const result = addOrUpdateStudent(id, name);
+      if (!result.ok) return toast(result.reason);
+      if (state.queue.some(q => q.id === result.student.id && ["BOOKED", "WAITING", "CALLED"].includes(q.status))) return toast("That student is already in the queue.");
+      const ticket = { number: state.nextNumber++, id: result.student.id, name: result.student.name, joined: "Counter", wait: "~4m", status: "WAITING" };
+      state.queue.push(ticket);
+      $("counterId").value = "";
+      $("counterName").value = "";
+      state.history.unshift(`Counter added ${ticket.name} as #${ticket.number}`);
+      render();
+      toast(`${ticket.name} added to queue.`);
+    }
+
+    function importStudents() {
+      const lines = $("importText").value.split(/\n+/).map(line => line.trim()).filter(Boolean);
+      let added = 0;
+      let updated = 0;
+      let skipped = 0;
+      lines.forEach(line => {
+        const parts = line.split(",").map(part => part.trim()).filter(Boolean);
+        if (parts.length < 2) {
+          skipped++;
+          return;
+        }
+        const result = addOrUpdateStudent(parts[0], parts.slice(1).join(" "));
+        if (!result.ok) skipped++;
+        else if (result.updated) updated++;
+        else added++;
+      });
+      state.history.unshift(`Imported ${added} students, updated ${updated}, skipped ${skipped}`);
+      render();
+      toast(`Imported ${added}, updated ${updated}, skipped ${skipped}.`);
+    }
+
+    function manualAddStudent() {
+      const result = addOrUpdateStudent($("manualId").value, $("manualName").value);
+      if (!result.ok) return toast(result.reason);
+      $("manualId").value = "";
+      $("manualName").value = "";
+      state.history.unshift(`${result.updated ? "Updated" : "Added"} ${result.student.name}`);
+      render();
+      toast(`${result.student.name} ${result.updated ? "updated" : "added"}.`);
+    }
+
+    function createStudentLogin() {
+      const id = $("loginCreateId").value;
+      const name = $("loginCreateName").value;
+      const password = $("loginCreatePassword").value.trim();
+      if (password.length < 6) return toast("Use a password with at least 6 characters.");
+      const result = addOrUpdateStudent(id, name, {
+        className: $("loginCreateClass").value.trim() || "Unassigned",
+        email: $("loginCreateEmail").value.trim() || `${id.trim().toLowerCase()}@tisb.ac.in`,
+        password,
+        accountLimit: Math.max(0, Number($("loginCreateLimit").value) || 0),
+        status: $("loginCreateStatus").value
+      });
+      if (!result.ok) return toast(result.reason);
+      $("loginCreateId").value = "";
+      $("loginCreateName").value = "";
+      $("loginCreateClass").value = "";
+      $("loginCreateEmail").value = "";
+      $("loginCreatePassword").value = "";
+      $("loginCreateLimit").value = "2500";
+      $("loginCreateStatus").value = "active";
+      state.history.unshift(`${result.updated ? "Updated" : "Created"} login for ${result.student.name}`);
+      render();
+      toast(`${result.student.name}'s student login is ready.`);
+    }
+
+    function prefillStudentLogin() {
+      const number = 2050 + state.students.length;
+      $("loginCreateId").value = `TISB${number}`;
+      $("loginCreateName").value = "New Student";
+      $("loginCreateClass").value = "Grade 8 - House";
+      $("loginCreateEmail").value = `tisb${number}@tisb.ac.in`;
+      $("loginCreatePassword").value = `student${String(number).slice(-4)}`;
+      $("loginCreateLimit").value = "2500";
+      $("loginCreateStatus").value = "active";
+    }
+
+    function addToCart(itemId) {
+      const item = state.catalogue.find(entry => entry.id === itemId);
+      if (!item || item.stock <= 0) return toast("Item is out of stock.");
+      const existing = state.cart.find(line => line.id === item.id);
+      const currentQty = existing ? existing.qty : 0;
+      if (currentQty + 1 > item.stock) return toast("Not enough stock for that item.");
+      if (existing) existing.qty++;
+      else state.cart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
+      render();
+    }
+
+    function changeCartQty(itemId, delta) {
+      const line = state.cart.find(entry => entry.id === itemId);
+      const item = state.catalogue.find(entry => entry.id === itemId);
+      if (!line || !item) return;
+      line.qty += delta;
+      if (line.qty > item.stock) line.qty = item.stock;
+      state.cart = state.cart.filter(entry => entry.qty > 0);
+      render();
+    }
+
+    function addToPreorder(itemId) {
+      const student = requireStudent();
+      if (!student) return;
+      const item = state.catalogue.find(entry => entry.id === itemId);
+      if (!item || item.stock <= 0) return toast("Item is out of stock.");
+      const existing = state.preorderCart.find(line => line.id === item.id);
+      const currentQty = existing ? existing.qty : 0;
+      if (currentQty + 1 > item.stock) return toast("Not enough stock for that pre-order item.");
+      if (existing) existing.qty++;
+      else state.preorderCart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
+      render();
+    }
+
+    function changePreorderQty(itemId, delta) {
+      const line = state.preorderCart.find(entry => entry.id === itemId);
+      const item = state.catalogue.find(entry => entry.id === itemId);
+      if (!line || !item) return;
+      line.qty += delta;
+      if (line.qty > item.stock) line.qty = item.stock;
+      state.preorderCart = state.preorderCart.filter(entry => entry.qty > 0);
+      render();
+    }
+
+    function billEmailBody(student, sale, heading) {
+      const lines = sale.items.map(item => `${item.qty} x ${item.name} - ${money(item.qty * item.price)}`).join("\n");
+      return `${heading}\n\nStudent: ${student.name} (${student.id})\nBill: ${sale.billNo}\nDate: ${sale.date} ${sale.time}\n\nItems:\n${lines}\n\nTotal charged to student account: ${money(saleTotal(sale))}\nDaily limit: ${money(DAILY_PURCHASE_LIMIT)}\nRemaining today: ${money(Math.max(0, DAILY_PURCHASE_LIMIT - dailySpendFor(student.id)))}\n\n${sale.channel === "Pre-order" ? "Pickup instruction: show this bill number at the tuck shop counter to collect the pre-order." : "This bill was generated at the TuckQ POS counter."}`;
+    }
+
+    function findSaleByBill(billNo) {
+      return state.sales.find(sale => sale.billNo === billNo);
+    }
+
+    function billDocumentHtml(sale) {
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${sale.billNo}</title><style>
+        body{font-family:Arial,sans-serif;color:#18213a;margin:24px;background:#f5f7fb}
+        .bill{max-width:520px;margin:auto;background:white;border:1px solid #dbe1ed;border-radius:8px;padding:22px}
+        h1,h2{margin:0;text-align:center}.muted{color:#66708a}.row{display:flex;justify-content:space-between;gap:14px;border-top:1px solid #edf1f6;padding:10px 0}
+        .total{font-weight:800;font-size:18px;border-top:2px solid #18213a}.note{text-align:center;font-size:12px;margin-top:18px}
+      </style></head><body><section class="bill">${receiptHtml(sale)}<p class="note">Show Bill No ${sale.billNo} at pickup if this is a pre-order.</p></section></body></html>`;
+    }
+
+    function viewBill(billNo) {
+      const sale = findSaleByBill(billNo);
+      if (!sale) return toast("Bill not found.");
+      state.openBillNo = billNo;
+      $("billModalBody").innerHTML = receiptHtml(sale);
+      $("billModal").classList.add("open");
+      $("billModal").setAttribute("aria-hidden", "false");
+    }
+
+    function closeBill() {
+      $("billModal").classList.remove("open");
+      $("billModal").setAttribute("aria-hidden", "true");
+    }
+
+    function downloadBill(billNo) {
+      const sale = findSaleByBill(billNo);
+      if (!sale) return toast("Bill not found.");
+      const blob = new Blob([billDocumentHtml(sale)], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${sale.billNo}.html`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast(`Downloaded ${sale.billNo}.`);
+    }
+
+    function confirmPreorder() {
+      const student = requireStudent();
+      if (!student) return;
+      if (!state.preorderCart.length) return toast("Add items before confirming a pre-order.");
+      if (student.status === "blocked") return toast("This student account is blocked by Admin.");
+      const stockProblem = state.preorderCart.find(line => {
+        const item = state.catalogue.find(entry => entry.id === line.id);
+        return !item || item.stock < line.qty;
+      });
+      if (stockProblem) return toast(`${stockProblem.name} does not have enough stock.`);
+      const total = state.preorderCart.reduce((sum, line) => sum + line.price * line.qty, 0);
+      const dailyRemaining = DAILY_PURCHASE_LIMIT - dailySpendFor(student.id);
+      if (total > dailyRemaining) return toast(`Daily tuck shop limit exceeded. Remaining today: ${money(dailyRemaining)}.`);
+      const remaining = (student.accountLimit || 2500) - monthlySpendFor(student.id);
+      if (total > remaining) return toast(`Monthly account limit exceeded. Remaining: ${money(remaining)}.`);
+
+      const booking = state.bookings.find(entry => entry.id === student.id);
+      const sale = {
+        billNo: billNumber(),
+        date: todayKey(),
+        iso: new Date().toISOString(),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        studentId: student.id,
+        studentName: student.name,
+        cashier: "TuckQ online pre-order",
+        channel: "Pre-order",
+        pickupSlot: booking?.slot || "Pickup counter",
+        pickupStatus: "READY_FOR_PICKUP",
+        items: state.preorderCart.map(line => ({ ...line }))
+      };
+      sale.items.forEach(line => {
+        const item = state.catalogue.find(entry => entry.id === line.id);
+        if (item) item.stock -= line.qty;
+      });
+      state.sales.push(sale);
+      state.preorders.unshift({
+        billNo: sale.billNo,
+        studentId: student.id,
+        studentName: student.name,
+        pickupSlot: sale.pickupSlot,
+        status: "READY_FOR_PICKUP",
+        total,
+        created: sale.time
+      });
+      queueEmail(
+        student,
+        `TuckQ Bill ${sale.billNo}: Pre-order confirmed`,
+        billEmailBody(student, sale, "Your TuckQ pre-order bill is ready."),
+        `preorder-bill-${sale.billNo}`
+      );
+      state.lastReceipt = sale;
+      state.preorderCart = [];
+      state.history.unshift(`Pre-order billed ${student.name}: ${money(total)}`);
+      render();
+      viewBill(sale.billNo);
+      toast(`Pre-order confirmed. Bill ${sale.billNo} was emailed/logged.`);
+    }
+
+    function markPreorderPickedUp(billNo) {
+      const order = state.preorders.find(entry => entry.billNo === billNo);
+      const sale = state.sales.find(entry => entry.billNo === billNo);
+      if (!order) return toast("Pre-order not found.");
+      order.status = "PICKED_UP";
+      order.pickedUpAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      if (sale) sale.pickupStatus = "PICKED_UP";
+      state.history.unshift(`Picked up pre-order ${billNo}`);
+      render();
+      toast(`Pre-order ${billNo} marked picked up.`);
+    }
+
+    function loadPosStudent() {
+      const id = $("posStudentId").value.trim().toUpperCase();
+      if (!id) return toast("Enter or scan a student ID card.");
+      const student = findStudent(id);
+      if (student) {
+        $("posStudentName").value = student.name;
+        toast(`${student.name} loaded.`);
+      } else {
+        $("posStudentName").value = "";
+        toast("New student. Enter name once, then billing can continue.");
+      }
+    }
+
+    function syncPosStudentName(showToast = false) {
+      const id = $("posStudentId").value.trim().toUpperCase();
+      const student = id ? findStudent(id) : null;
+      if (student) {
+        $("posStudentName").value = student.name;
+        if (showToast) toast(`${student.name} loaded.`);
+      }
+      return student;
+    }
+
+    function checkoutCart() {
+      const id = $("posStudentId").value.trim().toUpperCase();
+      const name = $("posStudentName").value.trim();
+      if (!state.cart.length) return toast("Add items before checkout.");
+      const result = addOrUpdateStudent(id, name);
+      if (!result.ok) return toast(result.reason);
+      if (result.student.status === "blocked") return toast("This student account is blocked by Admin.");
+      const stockProblem = state.cart.find(line => {
+        const item = state.catalogue.find(entry => entry.id === line.id);
+        return !item || item.stock < line.qty;
+      });
+      if (stockProblem) return toast(`${stockProblem.name} does not have enough stock.`);
+      const cartTotal = state.cart.reduce((sum, line) => sum + line.price * line.qty, 0);
+      const dailyRemaining = DAILY_PURCHASE_LIMIT - dailySpendFor(result.student.id);
+      if (cartTotal > dailyRemaining) return toast(`Daily tuck shop limit exceeded. Remaining today: ${money(dailyRemaining)}.`);
+      const remaining = (result.student.accountLimit || 2500) - monthlySpendFor(result.student.id);
+      if (cartTotal > remaining) return toast(`Monthly account limit exceeded. Remaining: ${money(remaining)}.`);
+
+      const sale = {
+        billNo: billNumber(),
+        date: todayKey(),
+        iso: new Date().toISOString(),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        studentId: result.student.id,
+        studentName: result.student.name,
+        cashier: state.user?.name || "Counter",
+        channel: "POS",
+        items: state.cart.map(line => ({ ...line }))
+      };
+      sale.items.forEach(line => {
+        const item = state.catalogue.find(entry => entry.id === line.id);
+        if (item) item.stock -= line.qty;
+      });
+      state.sales.push(sale);
+      queueEmail(
+        result.student,
+        `TuckQ Bill ${sale.billNo}: POS purchase`,
+        billEmailBody(result.student, sale, "Your TuckQ POS bill is ready."),
+        `bill-${sale.billNo}`
+      );
+      state.lastReceipt = sale;
+      state.cart = [];
+      state.history.unshift(`Billed ${result.student.name}: ${money(saleTotal(sale))}`);
+      render();
+      toast(`Charged ${result.student.name}'s account: ${money(saleTotal(sale))}.`);
+    }
+
+    function addCatalogueItem() {
+      const name = $("newItemName").value.trim();
+      const price = Math.max(1, Number($("newItemPrice").value) || 0);
+      const day = $("newItemDay").value;
+      const category = $("newItemCategory").value;
+      if (!name) return toast("Enter an item name.");
+      const id = `${day}-${name}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + `-${Date.now().toString().slice(-4)}`;
+      state.catalogue.push({ id, day, name, category, price, stock: 40 });
+      $("newItemName").value = "";
+      $("newItemPrice").value = "40";
+      state.history.unshift(`Added POS item ${name}`);
+      render();
+      toast(`${name} added to POS catalogue.`);
+    }
+
+    function downloadCsv(filename, rows) {
+      const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      $("reportStatus").textContent = "Downloaded";
+      toast(`${filename} downloaded.`);
+    }
+
+    function salesReportRows() {
+      return [
+        ["bill_no", "date", "time", "student_id", "student_name", "cashier", "channel", "pickup_status", "items", "total"],
+        ...state.sales.map(sale => [
+          sale.billNo,
+          sale.date,
+          sale.time,
+          sale.studentId,
+          sale.studentName,
+          sale.cashier || "",
+          sale.channel || "POS",
+          sale.pickupStatus || "",
+          sale.items.map(item => `${item.qty} x ${item.name} @ ${item.price}`).join("; "),
+          saleTotal(sale)
+        ])
+      ];
+    }
+
+    function ledgerReportRows() {
+      return [
+        ["student_id", "student_name", "email", "class", "status", "today_spend", "daily_limit", "daily_remaining", "week_spend", "month_spend", "monthly_limit", "remaining_limit"],
+        ...state.students.map(student => {
+          const sales = salesForStudent(student.id);
+          const today = dailySpendFor(student.id);
+          const week = sales.filter(sale => inThisWeek(sale.iso)).reduce((sum, sale) => sum + saleTotal(sale), 0);
+          const month = monthlySpendFor(student.id);
+          const limit = student.accountLimit || 2500;
+          return [student.id, student.name, student.email || "", student.className || "", student.status || "active", today, DAILY_PURCHASE_LIMIT, DAILY_PURCHASE_LIMIT - today, week, month, limit, limit - month];
+        })
+      ];
+    }
+
+    function inventoryReportRows() {
+      return [
+        ["item_id", "day", "name", "category", "price", "stock"],
+        ...state.catalogue.map(item => [item.id, item.day, item.name, item.category, item.price, item.stock])
+      ];
+    }
+
+    function queueReportRows() {
+      return [
+        ["type", "number_or_slot", "student_id", "student_name", "status", "detail"],
+        ...state.queue.map(q => ["queue", `#${q.number}`, q.id, q.name, q.status, `${q.joined} / ${q.wait}`]),
+        ...state.bookings.map(b => ["booking", b.slot, b.id, b.name, "BOOKED", b.created || ""]),
+        ...state.preorders.map(p => ["preorder", p.billNo, p.studentId, p.studentName, p.status, `${p.pickupSlot} / ${money(p.total)}`])
+      ];
+    }
+
+    function mailReportRows() {
+      return [
+        ["date", "time", "to", "student_id", "student_name", "subject", "body", "type", "status"],
+        ...state.mailOutbox.map(mail => [mail.date, mail.time, mail.to, mail.studentId, mail.studentName, mail.subject, mail.body, mail.type, mail.status])
+      ];
+    }
+
+    function exportToday() {
+      const rows = [
+        ["type", "id", "name", "detail", "amount"],
+        ...state.queue.map(q => ["queue", q.id, q.name, `#${q.number} ${q.status}`, ""]),
+        ...state.bookings.map(b => ["booking", b.id, b.name, b.slot, ""]),
+        ...state.sales.map(s => ["sale", s.studentId, s.studentName, `${s.billNo} ${s.items.map(item => `${item.qty}x ${item.name}`).join("; ")}`, saleTotal(s)]),
+        ...state.mailOutbox.map(m => ["mail", m.studentId, m.studentName, `${m.to} ${m.subject}`, m.status]),
+        ...state.students.map(s => ["student", s.id, s.name, `${s.className || ""} ${s.status || "active"}`, ""])
+      ];
+      downloadCsv(`tisb-full-export-${todayKey()}.csv`, rows);
+    }
+
+    function resetLocalData() {
+      if (!confirm("Reset all local queue, booking, and import data on this device?")) return;
+      localStorage.removeItem(STORAGE);
+      state = normalizeState(clone(initialState));
+      applyRoleAccess();
+      render();
+      toast("Local data reset.");
+    }
+
+    document.querySelectorAll(".portal-open").forEach(btn => {
+      btn.addEventListener("click", () => safe(() => openPortal(btn.dataset.portal || "student"), "Open portal"));
+    });
+    $("backHomeBtn").addEventListener("click", () => safe(() => showScreen("landingScreen"), "Back"));
+    $("logoutBtn").addEventListener("click", () => {
+      safe(() => {
+        state.user = null;
+        save();
+        showScreen("landingScreen");
+      }, "Logout");
+    });
+
+    $("loginForm").addEventListener("submit", event => {
+      event.preventDefault();
+      safe(() => {
+        const role = $("loginRole").value;
+        const demoId = role === "student" ? "TISB1042" : role === "operator" ? "STAFF01" : "ADMIN01";
+        const id = ($("loginId").value.trim().toUpperCase() || demoId);
+        const password = $("loginPassword").value.trim();
+        let name = $("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "operator" ? "Tuck Shop Staff" : "School Admin");
+        if (role === "student") {
+          const student = findStudent(id);
+          if (!student) return toast("Student login not found. Ask Admin to create it first.");
+          if (student.status === "blocked") return toast("This student login is blocked.");
+          if (String(student.password) !== password) return toast("Incorrect student password.");
+          name = student.name;
+        } else if (role === "operator" && password !== "staff123") {
+          return toast("Incorrect POS password for this local build.");
+        } else if (role === "admin" && password !== "admin123") {
+          return toast("Incorrect admin password for this local build.");
+        }
+        state.user = { role, id, name };
+        save();
+        showScreen("appScreen");
+        applyRoleAccess();
+        render();
+        toast(`Welcome, ${name}.`);
+      }, "Login");
+    });
+
+    document.querySelectorAll(".nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => setView(btn.dataset.view));
+    });
+
+    document.querySelectorAll("#batchSelect button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#batchSelect button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.batch = Number(btn.dataset.batch);
+        render();
+      });
+    });
+
+    $("joinBtn").addEventListener("click", joinQueue);
+    $("bookBtn").addEventListener("click", bookNextSlot);
+    $("leaveBtn").addEventListener("click", leaveQueue);
+    $("callNextBtn").addEventListener("click", callNext);
+    $("fastCallBtn").addEventListener("click", callNext);
+    $("serveNextBtn").addEventListener("click", serveNext);
+    $("noShowBtn").addEventListener("click", () => {
+      const next = state.queue.find(q => q.status === "CALLED");
+      if (next) rowAction("noshow", next.number);
+      else toast("No called student to mark no-show.");
+    });
+    $("toggleOpenBtn").addEventListener("click", () => {
+      state.open = !state.open;
+      render();
+      toast(state.open ? "Tuck shop is open." : "Tuck shop is closed. Pre-opening bookings remain available.");
+    });
+    $("pauseBtn").addEventListener("click", () => {
+      state.paused = !state.paused;
+      render();
+      toast(state.paused ? "Queue paused." : "Queue resumed.");
+    });
+    $("fastPauseBtn").addEventListener("click", () => $("pauseBtn").click());
+    $("counterAddBtn").addEventListener("click", addCounterStudent);
+    $("posDay").addEventListener("change", () => {
+      state.selectedPosDay = $("posDay").value;
+      render();
+    });
+    $("itemSearch").addEventListener("input", renderPos);
+    $("categoryFilter").addEventListener("change", renderPos);
+    $("posStudentId").addEventListener("input", () => syncPosStudentName(false));
+    $("posStudentId").addEventListener("change", () => syncPosStudentName(true));
+    $("loadStudentBtn").addEventListener("click", loadPosStudent);
+    $("clearCartBtn").addEventListener("click", () => {
+      state.cart = [];
+      render();
+      toast("Cart cleared.");
+    });
+    $("checkoutBtn").addEventListener("click", checkoutCart);
+    $("confirmPreorderBtn").addEventListener("click", confirmPreorder);
+    $("closeBillBtn").addEventListener("click", closeBill);
+    $("downloadOpenBillBtn").addEventListener("click", () => state.openBillNo && downloadBill(state.openBillNo));
+    $("printOpenBillBtn").addEventListener("click", () => window.print());
+    $("billModal").addEventListener("click", event => {
+      if (event.target.id === "billModal") closeBill();
+    });
+    $("printBillBtn").addEventListener("click", () => {
+      if (!state.lastReceipt) return toast("Create a bill before printing.");
+      window.print();
+    });
+    $("downloadSalesBtn").addEventListener("click", () => downloadCsv(`tisb-pos-sales-${todayKey()}.csv`, salesReportRows()));
+    $("posToggleOpenBtn").addEventListener("click", () => $("toggleOpenBtn").click());
+    $("posCallNextBtn").addEventListener("click", callNext);
+    $("posServeNextBtn").addEventListener("click", serveNext);
+    $("posNoShowBtn").addEventListener("click", () => $("noShowBtn").click());
+    $("importBtn").addEventListener("click", importStudents);
+    $("clearImportBtn").addEventListener("click", () => $("importText").value = "");
+    $("manualAddBtn").addEventListener("click", manualAddStudent);
+    $("slotIncrement").addEventListener("change", () => {
+      state.slotIncrement = Number($("slotIncrement").value);
+      state.history.unshift(`Slot increment set to ${state.slotIncrement} minutes`);
+      render();
+      toast(`Slots updated to ${state.slotIncrement} minute increments.`);
+    });
+    $("saveSettingsBtn").addEventListener("click", () => {
+      state.slotIncrement = Number($("slotIncrement").value);
+      state.slotCapacity = Math.max(1, Number($("slotCapacity").value) || 18);
+      render();
+      toast("TISB settings saved.");
+    });
+    $("exportBtn").addEventListener("click", exportToday);
+    $("resetBtn").addEventListener("click", resetLocalData);
+    $("addItemBtn").addEventListener("click", addCatalogueItem);
+    $("createStudentLoginBtn").addEventListener("click", createStudentLogin);
+    $("prefillLoginBtn").addEventListener("click", prefillStudentLogin);
+    $("reportSalesBtn").addEventListener("click", () => downloadCsv(`tisb-pos-sales-${todayKey()}.csv`, salesReportRows()));
+    $("reportLedgerBtn").addEventListener("click", () => downloadCsv(`tisb-student-ledger-${todayKey()}.csv`, ledgerReportRows()));
+    $("reportInventoryBtn").addEventListener("click", () => downloadCsv(`tisb-inventory-${todayKey()}.csv`, inventoryReportRows()));
+    $("reportQueueBtn").addEventListener("click", () => downloadCsv(`tisb-queue-bookings-${todayKey()}.csv`, queueReportRows()));
+    $("reportMailBtn").addEventListener("click", () => downloadCsv(`tisb-email-outbox-${todayKey()}.csv`, mailReportRows()));
+
+    async function startApp() {
+      await safe(async () => {
+        await loadServerState();
+        if (state.user) {
+          showScreen("appScreen");
+          applyRoleAccess();
+        }
+        render();
+        if (SERVER_MODE) toast("Working server mode is active.");
+      }, "Startup");
+    }
+
+    startApp().catch(error => safe(() => { throw error; }, "Startup"));
+  </script>
+</body>
+</html>

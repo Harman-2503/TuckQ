@@ -6,12 +6,15 @@ test("TuckQ app replaces the starter preview", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const oldUi = await readFile(new URL("../public/tuckq.html", import.meta.url), "utf8");
 
-  assert.match(page, /TuckQ/);
-  assert.match(page, /Student Portal Login/);
-  assert.match(page, /cancelBooking/);
-  assert.match(page, /downloadReport/);
+  assert.match(page, /iframe/);
+  assert.match(page, /\/tuckq\.html/);
+  assert.match(oldUi, /TISB Tuck Shop Operating System/);
+  assert.match(oldUi, /Queue ticket cancelled/);
+  assert.match(oldUi, /salesReportRows/);
+  assert.match(oldUi, /TISB-Logo-DarkBG/);
   assert.match(layout, /TuckQ \| TISB Tuck Shop/);
-  assert.match(styles, /\.noticePanel/);
-  assert.doesNotMatch(page + layout, /SkeletonPreview|codex-preview|Queless/);
+  assert.match(styles, /\.tuckq-frame/);
+  assert.doesNotMatch(page + layout + oldUi, /SkeletonPreview|codex-preview|Queless/);
 });
