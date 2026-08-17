@@ -209,6 +209,32 @@
 
     .login-card .primary { width: 100%; }
 
+    .sso-panel {
+      display: grid;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .sso-btn {
+      width: 100%;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .sso-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background:
+        linear-gradient(90deg, #f25022 0 50%, #7fba00 50%),
+        linear-gradient(90deg, #00a4ef 0 50%, #ffb900 50%);
+      background-size: 100% 50%, 100% 50%;
+      background-position: top, bottom;
+      background-repeat: no-repeat;
+      flex: 0 0 auto;
+    }
+
     .login-card label {
       color: #4f5a73;
     }
@@ -885,6 +911,10 @@
           <div class="portal-icon">₹</div>
           <div><strong>POS Portal</strong><span>Scan a student card, auto-load the name, add day-wise items, email the bill, and print a proper receipt.</span></div>
         </button>
+        <button class="portal-card portal-open" data-portal="teacher">
+          <div class="portal-icon">TR</div>
+          <div><strong>Teacher Duty Portal</strong><span>Open the supervision view, monitor queue tickets, call batches, and see pickup status without billing controls.</span></div>
+        </button>
         <button class="portal-card portal-open" data-portal="admin">
           <div class="portal-icon">AD</div>
           <div><strong>Admin Portal</strong><span>Create student logins, manage cards, POS menu, slots, imports, reports, and school settings.</span></div>
@@ -912,9 +942,14 @@
         <select id="loginRole">
           <option value="student">Student</option>
           <option value="operator">Tuck Shop Operator</option>
+          <option value="teacher">Teacher</option>
           <option value="admin">School Admin</option>
         </select>
       </label>
+      <div class="sso-panel">
+        <button class="quiet sso-btn" type="button" id="azureSignInBtn"><span class="sso-dot"></span><span>Sign in with Microsoft</span></button>
+        <p class="muted" id="ssoHint">Use school Azure SSO when configured. Password login remains available for local/admin setup.</p>
+      </div>
       <label>ID card number
         <input id="loginId" autocomplete="off" placeholder="Example: TISB1042">
       </label>
@@ -943,7 +978,7 @@
       </div>
       <nav aria-label="Main views">
         <button class="nav-btn active" data-view="student" data-roles="student,operator,admin"><span>ST</span><span>Student</span></button>
-        <button class="nav-btn" data-view="operator" data-roles="operator,admin"><span>OP</span><span>Operator</span></button>
+        <button class="nav-btn" data-view="operator" data-roles="operator,teacher,admin"><span>OP</span><span>Operator</span></button>
         <button class="nav-btn" data-view="pos" data-roles="operator,admin"><span>₹</span><span>POS</span></button>
         <button class="nav-btn" data-view="account" data-roles="student,admin"><span>AC</span><span>Account</span></button>
         <button class="nav-btn" data-view="import" data-roles="operator,admin"><span>ID</span><span>Import</span></button>
@@ -1595,6 +1630,47 @@ TISB1044, Rehan Pillai</textarea>
       }, 250);
     }
 
+    async function loadSsoSession() {
+      if (!SERVER_MODE) return null;
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        const result = await response.json();
+        const btn = $("azureSignInBtn");
+        if (btn && !result.azureConfigured) {
+          btn.disabled = true;
+          btn.querySelector("span:last-child").textContent = "Microsoft SSO needs Azure setup";
+          $("ssoHint").textContent = "Add Azure tenant, client, and session secret settings to activate SSO.";
+        }
+        if (result.authenticated && result.user) {
+          applySsoUser(result.user);
+          return result.user;
+        }
+      } catch (error) {
+        console.warn("SSO session unavailable:", error);
+      }
+      return null;
+    }
+
+    function applySsoUser(user) {
+      const role = ["admin", "student", "teacher", "operator"].includes(user.role) ? user.role : "student";
+      if (role === "student") {
+        const existing = findStudent(user.id);
+        if (!existing) {
+          addStudent({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            password: `azure-${user.id.toLowerCase()}`,
+            className: "Azure SSO",
+            accountLimit: 2500,
+            status: "active"
+          });
+        }
+      }
+      state.user = { role, id: user.id, name: user.name, email: user.email, sso: true };
+      save();
+    }
+
     function clone(value) {
       return JSON.parse(JSON.stringify(value));
     }
@@ -1694,6 +1770,15 @@ TISB1044, Rehan Pillai</textarea>
           idPlaceholder: "Example: STAFF01",
           namePlaceholder: "Staff name"
         },
+        teacher: {
+          title: "Teacher Duty Login",
+          subtitle: "Supervise queue tickets, call batches, and monitor pickup flow.",
+          button: "Enter Teacher Portal",
+          hint: "Use school Microsoft SSO or the teacher duty password.",
+          badge: "Teacher access",
+          idPlaceholder: "Example: TEACHER01",
+          namePlaceholder: "Teacher name"
+        },
         admin: {
           title: "Admin Portal Login",
           subtitle: "Create student logins, manage POS menu, reports, and settings.",
@@ -1713,6 +1798,7 @@ TISB1044, Rehan Pillai</textarea>
       const defaults = {
         student: { id: "TISB1042", name: "Aarav Nair", password: "student1042" },
         operator: { id: "STAFF01", name: "Tuck Shop Staff", password: "staff123" },
+        teacher: { id: "TEACHER01", name: "Teacher Duty", password: "teacher123" },
         admin: { id: "ADMIN01", name: "School Admin", password: "admin123" }
       };
       const preset = defaults[role] || defaults.student;
@@ -1854,7 +1940,7 @@ TISB1044, Rehan Pillai</textarea>
       document.querySelectorAll(".nav-btn").forEach(btn => {
         btn.style.display = btn.dataset.roles.includes(role) ? "grid" : "none";
       });
-      const preferred = role === "admin" ? "admin" : role === "operator" ? "pos" : "student";
+      const preferred = role === "admin" ? "admin" : role === "operator" ? "pos" : role === "teacher" ? "operator" : "student";
       setView(preferred);
     }
 
@@ -2727,10 +2813,22 @@ TISB1044, Rehan Pillai</textarea>
       btn.addEventListener("click", () => safe(() => openPortal(btn.dataset.portal || "student"), "Open portal"));
     });
     $("backHomeBtn").addEventListener("click", () => safe(() => showScreen("landingScreen"), "Back"));
+    $("azureSignInBtn").addEventListener("click", () => {
+      safe(() => {
+        if (!SERVER_MODE) return toast("Microsoft SSO works on the hosted or localhost server version.");
+        const role = $("loginRole").value || selectedPortal || "student";
+        location.href = `/api/auth/azure/start?role=${encodeURIComponent(role)}`;
+      }, "Microsoft sign in");
+    });
     $("logoutBtn").addEventListener("click", () => {
       safe(() => {
+        const wasSso = state.user?.sso;
         state.user = null;
         save();
+        if (wasSso && SERVER_MODE) {
+          location.href = "/api/auth/logout";
+          return;
+        }
         showScreen("landingScreen");
       }, "Logout");
     });
@@ -2739,11 +2837,11 @@ TISB1044, Rehan Pillai</textarea>
       event.preventDefault();
       safe(() => {
         const role = $("loginRole").value;
-        const demoId = role === "student" ? "TISB1042" : role === "operator" ? "STAFF01" : "ADMIN01";
+        const demoId = role === "student" ? "TISB1042" : role === "operator" ? "STAFF01" : role === "teacher" ? "TEACHER01" : "ADMIN01";
         const id = ($("loginId").value.trim().toUpperCase() || demoId);
-        const defaultPassword = role === "student" ? `student${id.slice(-4)}` : role === "operator" ? "staff123" : "admin123";
+        const defaultPassword = role === "student" ? `student${id.slice(-4)}` : role === "operator" ? "staff123" : role === "teacher" ? "teacher123" : "admin123";
         const password = $("loginPassword").value.trim() || defaultPassword;
-        let name = $("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "operator" ? "Tuck Shop Staff" : "School Admin");
+        let name = $("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "operator" ? "Tuck Shop Staff" : role === "teacher" ? "Teacher Duty" : "School Admin");
         if (role === "student") {
           const student = findStudent(id);
           if (!student) return toast("Student login not found. Ask Admin to create it first.");
@@ -2752,6 +2850,8 @@ TISB1044, Rehan Pillai</textarea>
           name = student.name;
         } else if (role === "operator" && password !== "staff123") {
           return toast("Incorrect POS password for this local build.");
+        } else if (role === "teacher" && password !== "teacher123") {
+          return toast("Incorrect teacher password for this local build.");
         } else if (role === "admin" && password !== "admin123") {
           return toast("Incorrect admin password for this local build.");
         }
@@ -2860,12 +2960,19 @@ TISB1044, Rehan Pillai</textarea>
     async function startApp() {
       await safe(async () => {
         await loadServerState();
+        const params = new URLSearchParams(location.search);
+        const preferredRole = params.get("role");
+        if (preferredRole && ["student", "operator", "teacher", "admin"].includes(preferredRole)) openPortal(preferredRole);
+        const ssoUser = await loadSsoSession();
         if (state.user) {
           showScreen("appScreen");
           applyRoleAccess();
         }
         render();
-        if (SERVER_MODE) toast("Working server mode is active.");
+        if (params.get("sso") === "success" && ssoUser) toast(`Signed in with Microsoft as ${ssoUser.name}.`);
+        else if (params.get("sso") === "not-configured") toast("Microsoft SSO needs Azure settings before it can be used.");
+        else if (params.get("sso")) toast("Microsoft sign-in could not be completed.");
+        else if (SERVER_MODE) toast("Working server mode is active.");
       }, "Startup");
     }
 

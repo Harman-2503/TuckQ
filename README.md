@@ -45,6 +45,34 @@ configured, messages are saved as drafts instead of being sent.
 For a real school sender address, verify the school's sending domain in Resend
 and update `MAIL_FROM` to that verified address.
 
+## Azure SSO Setup
+
+The app includes Microsoft Entra ID / Azure sign-in. Keep the redirect URI in
+Azure as:
+
+```text
+https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site/api/auth/azure/callback
+```
+
+Configure these production environment variables in Sites:
+
+- `AZURE_TENANT_ID`
+- `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET` for confidential web-app registrations, optional for PKCE public-client setups
+- `AZURE_SESSION_SECRET` with a long random value
+- `AZURE_REDIRECT_URI` if the final domain changes
+
+Role mapping supports Microsoft app roles, email allowlists, or group IDs:
+
+- Admin: `TuckQ.Admin` / `admin`, `AZURE_ADMIN_EMAILS`, or `AZURE_ADMIN_GROUP_IDS`
+- Teacher: `TuckQ.Teacher` / `teacher`, `AZURE_TEACHER_EMAILS`, or `AZURE_TEACHER_GROUP_IDS`
+- Operator: `TuckQ.Operator` / `operator`, `AZURE_OPERATOR_EMAILS`, or `AZURE_OPERATOR_GROUP_IDS`
+- Student: default role for signed-in school users
+
+Students whose Azure email starts with their school ID, such as
+`tisb1042@tisb.ac.in`, are matched automatically to the same TuckQ student
+account.
+
 ## Local Development
 
 Requires Node.js `>=22.13.0`.
