@@ -19,6 +19,9 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(oldUi, /Microsoft email and NFC card UID mapping is active/);
   assert.match(oldUi, /Student master file/);
   assert.match(oldUi, /Student ID \/ NFC card UID/);
+  assert.match(oldUi, /Per-student limit\/day/);
+  assert.match(oldUi, /Default local code: 4321/);
+  assert.match(oldUi, /itemLimitMessage/);
   assert.match(oldUi, /customReportRows/);
   assert.match(oldUi, /TISB-Logo-DarkBG/);
   assert.match(layout, /TuckQ \| TISB Tuck Shop/);

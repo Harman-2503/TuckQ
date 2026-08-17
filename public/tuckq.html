@@ -92,6 +92,8 @@
 
     .logo-lockup h1, .brand h1 { margin: 0; font-size: 22px; line-height: 1.05; overflow-wrap: anywhere; }
     .logo-lockup p, .brand p { margin: 4px 0 0; color: #e4c9b5; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
+    .operator-code-mode .login-id-field,
+    .operator-code-mode .login-name-field { display: none; }
 
     .landing-copy {
       max-width: 760px;
@@ -994,13 +996,13 @@
         <button class="quiet sso-btn" type="button" id="azureSignInBtn"><span class="sso-dot"></span><span>Sign in with Microsoft</span></button>
         <p class="muted" id="ssoHint">Use school Azure SSO when configured. Password login remains available for local/admin setup.</p>
       </div>
-      <label>ID card number
+      <label class="login-id-field">ID card number
         <input id="loginId" autocomplete="off" placeholder="Example: TISB1042">
       </label>
-      <label>Name
+      <label class="login-name-field">Name
         <input id="loginName" autocomplete="name" placeholder="Your full name">
       </label>
-      <label>Password
+      <label id="loginPasswordLabel">Password
         <input id="loginPassword" autocomplete="current-password" type="password" placeholder="Enter password">
       </label>
       <div class="actions">
@@ -1493,10 +1495,11 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
             <div class="panel">
               <h3>Add POS Menu Item</h3>
               <div class="form-grid" style="margin-top:16px;">
-                <label>Day<select id="newItemDay"></select></label>
+                <label>Available on<select id="newItemDay"></select></label>
                 <label>Category<select id="newItemCategory"><option>Hot food</option><option>Snack</option><option>Drink</option><option>Daily chips</option></select></label>
                 <label>Item name<input id="newItemName" placeholder="Example: Masala Chips"></label>
                 <label>Price ₹<input id="newItemPrice" type="number" min="1" value="40"></label>
+                <label>Per-student limit/day<input id="newItemPurchaseLimit" type="number" min="0" value="0" placeholder="0 = no item limit"></label>
               </div>
               <div class="actions" style="margin-top:16px;">
                 <button class="primary" id="addItemBtn">Add Item</button>
@@ -1660,6 +1663,11 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       merged.queue = Array.isArray(source.queue) ? source.queue : [];
       merged.history = Array.isArray(source.history) ? source.history : initialState.history;
       merged.catalogue = Array.isArray(source.catalogue) && source.catalogue.length ? source.catalogue : DEFAULT_CATALOGUE;
+      merged.catalogue = merged.catalogue.map(item => ({
+        ...item,
+        day: item.day === "All days" ? "Everyday" : item.day,
+        purchaseLimit: Math.max(0, Number(item.purchaseLimit ?? item.purchase_limit ?? item.limit ?? 0) || 0)
+      }));
       merged.cart = Array.isArray(source.cart) ? source.cart : [];
       merged.preorderDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
       merged.preorderCart = Array.isArray(source.preorderCart) ? source.preorderCart : [];
@@ -1905,9 +1913,9 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
           title: "POS Portal Login",
           subtitle: "Counter billing, card lookup, receipts, and queue calling.",
           button: "Enter POS Portal",
-          hint: "Use the POS staff ID and password.",
+          hint: "Counter staff only need the shared POS code. Default local code: 4321.",
           badge: "POS staff access",
-          idPlaceholder: "Example: STAFF01",
+          idPlaceholder: "Auto: STAFF01",
           namePlaceholder: "Staff name"
         },
         teacher: {
@@ -1952,7 +1960,10 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       $("loginName").placeholder = copy.namePlaceholder;
       $("loginId").value = preset.id;
       $("loginName").value = preset.name;
-      $("loginPassword").value = preset.password;
+      $("loginPassword").value = role === "operator" ? "" : preset.password;
+      $("loginPassword").placeholder = role === "operator" ? "Enter POS code" : "Enter password";
+      $("loginPasswordLabel").childNodes[0].nodeValue = role === "operator" ? "POS code " : "Password ";
+      $("loginForm").classList.toggle("operator-code-mode", role === "operator");
       showScreen("loginScreen");
     }
 
@@ -1975,6 +1986,27 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
 
     function dayItems(day = state.selectedPosDay) {
       return state.catalogue.filter(item => item.day === "Everyday" || item.day === day);
+    }
+
+    function itemPurchaseLimit(item) {
+      return Math.max(0, Number(item?.purchaseLimit || 0) || 0);
+    }
+
+    function itemQtyPurchasedToday(studentId, itemId) {
+      return state.sales
+        .filter(sale => sale.studentId === studentId && sale.date === todayKey())
+        .flatMap(sale => sale.items || [])
+        .filter(item => item.id === itemId)
+        .reduce((sum, item) => sum + Number(item.qty || 0), 0);
+    }
+
+    function itemLimitMessage(studentId, item, requestedQty) {
+      const limit = itemPurchaseLimit(item);
+      if (!studentId || !limit) return "";
+      const alreadyBought = itemQtyPurchasedToday(studentId, item.id);
+      if (alreadyBought + requestedQty <= limit) return "";
+      const left = Math.max(0, limit - alreadyBought);
+      return `${item.name} is limited to ${limit} per student per day. ${left} left today.`;
     }
 
     function saleTotal(sale) {
@@ -2181,7 +2213,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
     function renderMenu() {
       $("menu").innerHTML = dayItems().slice(0, 8).map(item => `
         <div class="menu-item">
-          <div><strong>${item.name}</strong><span>${item.day === "Everyday" ? "Everyday" : state.selectedPosDay} - ${item.category}</span></div>
+          <div><strong>${item.name}</strong><span>${item.day === "Everyday" ? "All days" : state.selectedPosDay} - ${item.category}${itemPurchaseLimit(item) ? ` - Limit ${itemPurchaseLimit(item)}/day` : ""}</span></div>
           <span class="badge ${item.stock > 10 ? "green" : "yellow"}">${money(item.price)}</span>
         </div>`).join("");
     }
@@ -2189,7 +2221,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
     function fillDaySelects() {
       const options = DAYS.map(day => `<option value="${day}">${day}</option>`).join("");
       if (!$("posDay").innerHTML) $("posDay").innerHTML = options;
-      if (!$("newItemDay").innerHTML) $("newItemDay").innerHTML = `<option value="Everyday">Everyday</option>${options}`;
+      if (!$("newItemDay").innerHTML) $("newItemDay").innerHTML = `<option value="Everyday">All days</option>${options}`;
       $("posDay").value = state.selectedPosDay;
     }
 
@@ -2201,7 +2233,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       $("preorderItems").innerHTML = items.map(item => `
         <button class="item-btn preorder-item" data-id="${item.id}" ${item.stock <= 0 ? "disabled" : ""}>
           <strong>${item.name}</strong>
-          <span>${item.category} - ${money(item.price)} - Stock ${item.stock}</span>
+          <span>${item.category} - ${money(item.price)} - Stock ${item.stock}${itemPurchaseLimit(item) ? ` - Limit ${itemPurchaseLimit(item)}/day` : ""}</span>
         </button>`).join("");
       document.querySelectorAll(".preorder-item").forEach(btn => btn.addEventListener("click", () => addToPreorder(btn.dataset.id)));
 
@@ -2255,7 +2287,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       $("posItems").innerHTML = items.map(item => `
         <button class="item-btn pos-item" data-id="${item.id}" ${item.stock <= 0 ? "disabled" : ""}>
           <strong>${item.name}</strong>
-          <span>${item.category} - ${money(item.price)} - Stock ${item.stock}</span>
+          <span>${item.category} - ${money(item.price)} - Stock ${item.stock}${itemPurchaseLimit(item) ? ` - Limit ${itemPurchaseLimit(item)}/day` : ""}</span>
         </button>`).join("");
       document.querySelectorAll(".pos-item").forEach(btn => btn.addEventListener("click", () => addToCart(btn.dataset.id)));
 
@@ -2325,7 +2357,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       $("catalogueCount").textContent = `${state.catalogue.length} items`;
       $("catalogueList").innerHTML = state.catalogue.slice(0, 18).map(item => `
         <div class="student-row">
-          <div><strong>${item.name}</strong><span>${item.day} - ${item.category} - Stock ${item.stock}</span></div>
+          <div><strong>${item.name}</strong><span>${item.day === "Everyday" ? "All days" : item.day} - ${item.category} - Stock ${item.stock}${itemPurchaseLimit(item) ? ` - Limit ${itemPurchaseLimit(item)}/student/day` : ""}</span></div>
           <span class="badge green">${money(item.price)}</span>
         </div>`).join("");
     }
@@ -2778,6 +2810,9 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       const existing = state.cart.find(line => line.id === item.id);
       const currentQty = existing ? existing.qty : 0;
       if (currentQty + 1 > item.stock) return toast("Not enough stock for that item.");
+      const student = syncPosStudentName(false);
+      const limitWarning = student ? itemLimitMessage(student.id, item, currentQty + 1) : "";
+      if (limitWarning) return toast(limitWarning);
       if (existing) existing.qty++;
       else state.cart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
       render();
@@ -2787,6 +2822,11 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       const line = state.cart.find(entry => entry.id === itemId);
       const item = state.catalogue.find(entry => entry.id === itemId);
       if (!line || !item) return;
+      if (delta > 0) {
+        const student = syncPosStudentName(false);
+        const limitWarning = student ? itemLimitMessage(student.id, item, line.qty + delta) : "";
+        if (limitWarning) return toast(limitWarning);
+      }
       line.qty += delta;
       if (line.qty > item.stock) line.qty = item.stock;
       state.cart = state.cart.filter(entry => entry.qty > 0);
@@ -2801,6 +2841,8 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       const existing = state.preorderCart.find(line => line.id === item.id);
       const currentQty = existing ? existing.qty : 0;
       if (currentQty + 1 > item.stock) return toast("Not enough stock for that pre-order item.");
+      const limitWarning = itemLimitMessage(student.id, item, currentQty + 1);
+      if (limitWarning) return toast(limitWarning);
       if (existing) existing.qty++;
       else state.preorderCart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
       render();
@@ -2810,6 +2852,12 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       const line = state.preorderCart.find(entry => entry.id === itemId);
       const item = state.catalogue.find(entry => entry.id === itemId);
       if (!line || !item) return;
+      if (delta > 0) {
+        const student = requireStudent();
+        if (!student) return;
+        const limitWarning = itemLimitMessage(student.id, item, line.qty + delta);
+        if (limitWarning) return toast(limitWarning);
+      }
       line.qty += delta;
       if (line.qty > item.stock) line.qty = item.stock;
       state.preorderCart = state.preorderCart.filter(entry => entry.qty > 0);
@@ -2871,6 +2919,14 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
         return !item || item.stock < line.qty;
       });
       if (stockProblem) return toast(`${stockProblem.name} does not have enough stock.`);
+      const limitProblem = state.preorderCart.find(line => {
+        const item = state.catalogue.find(entry => entry.id === line.id);
+        return item && itemLimitMessage(student.id, item, line.qty);
+      });
+      if (limitProblem) {
+        const item = state.catalogue.find(entry => entry.id === limitProblem.id);
+        return toast(itemLimitMessage(student.id, item, limitProblem.qty));
+      }
       const total = state.preorderCart.reduce((sum, line) => sum + line.price * line.qty, 0);
       const dailyRemaining = DAILY_PURCHASE_LIMIT - dailySpendFor(student.id);
       if (total > dailyRemaining) return toast(`Daily tuck shop limit exceeded. Remaining today: ${money(dailyRemaining)}.`);
@@ -2969,6 +3025,14 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
         return !item || item.stock < line.qty;
       });
       if (stockProblem) return toast(`${stockProblem.name} does not have enough stock.`);
+      const limitProblem = state.cart.find(line => {
+        const item = state.catalogue.find(entry => entry.id === line.id);
+        return item && itemLimitMessage(result.student.id, item, line.qty);
+      });
+      if (limitProblem) {
+        const item = state.catalogue.find(entry => entry.id === limitProblem.id);
+        return toast(itemLimitMessage(result.student.id, item, limitProblem.qty));
+      }
       const cartTotal = state.cart.reduce((sum, line) => sum + line.price * line.qty, 0);
       const dailyRemaining = DAILY_PURCHASE_LIMIT - dailySpendFor(result.student.id);
       if (cartTotal > dailyRemaining) return toast(`Daily tuck shop limit exceeded. Remaining today: ${money(dailyRemaining)}.`);
@@ -3009,11 +3073,13 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       const price = Math.max(1, Number($("newItemPrice").value) || 0);
       const day = $("newItemDay").value;
       const category = $("newItemCategory").value;
+      const purchaseLimit = Math.max(0, Number($("newItemPurchaseLimit").value) || 0);
       if (!name) return toast("Enter an item name.");
       const id = `${day}-${name}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + `-${Date.now().toString().slice(-4)}`;
-      state.catalogue.push({ id, day, name, category, price, stock: 40 });
+      state.catalogue.push({ id, day, name, category, price, stock: 40, purchaseLimit });
       $("newItemName").value = "";
       $("newItemPrice").value = "40";
+      $("newItemPurchaseLimit").value = "0";
       state.history.unshift(`Added POS item ${name}`);
       render();
       toast(`${name} added to POS catalogue.`);
@@ -3139,8 +3205,8 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
     function inventoryReportRows(filters = null) {
       const items = filters ? filteredInventory(filters) : state.catalogue;
       return [
-        ["item_id", "day", "name", "category", "price", "stock"],
-        ...items.map(item => [item.id, item.day, item.name, item.category, item.price, item.stock])
+        ["item_id", "day", "name", "category", "price", "stock", "purchase_limit_per_student_day"],
+        ...items.map(item => [item.id, item.day === "Everyday" ? "All days" : item.day, item.name, item.category, item.price, item.stock, itemPurchaseLimit(item) || ""])
       ];
     }
 
@@ -3292,18 +3358,18 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       safe(() => {
         const role = $("loginRole").value;
         const demoId = role === "student" ? "TISB1042" : role === "operator" ? "STAFF01" : role === "teacher" ? "TEACHER01" : "ADMIN01";
-        const id = ($("loginId").value.trim().toUpperCase() || demoId);
+        const id = role === "operator" ? "STAFF01" : ($("loginId").value.trim().toUpperCase() || demoId);
         const defaultPassword = role === "student" ? `student${id.slice(-4)}` : role === "operator" ? "staff123" : role === "teacher" ? "teacher123" : "admin123";
         const password = $("loginPassword").value.trim() || defaultPassword;
-        let name = $("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "operator" ? "Tuck Shop Staff" : role === "teacher" ? "Teacher Duty" : "School Admin");
+        let name = role === "operator" ? "Tuck Shop Staff" : ($("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "teacher" ? "Teacher Duty" : "School Admin"));
         if (role === "student") {
           const student = findStudent(id);
           if (!student) return toast("Student login not found. Ask Admin to create it first.");
           if (student.status === "blocked") return toast("This student login is blocked.");
           if (String(student.password) !== password) return toast("Incorrect student password.");
           name = student.name;
-        } else if (role === "operator" && password !== "staff123") {
-          return toast("Incorrect POS password for this local build.");
+        } else if (role === "operator" && !["4321", "staff123"].includes(password)) {
+          return toast("Incorrect POS code.");
         } else if (role === "teacher" && password !== "teacher123") {
           return toast("Incorrect teacher password for this local build.");
         } else if (role === "admin" && password !== "admin123") {

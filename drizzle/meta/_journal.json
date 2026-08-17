@@ -22,6 +22,13 @@
       "when": 1786971600000,
       "tag": "0002_tuckq_student_card_uid",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786977600000,
+      "tag": "0003_tuckq_catalogue_purchase_limit",
+      "breakpoints": true
     }
   ]
 }

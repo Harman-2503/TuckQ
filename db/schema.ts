@@ -26,6 +26,7 @@ export const tuckqCatalogue = sqliteTable("tuckq_catalogue", {
   category: text("category"),
   price: integer("price").notNull(),
   stock: integer("stock").notNull().default(0),
+  purchaseLimit: integer("purchase_limit").notNull().default(0),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

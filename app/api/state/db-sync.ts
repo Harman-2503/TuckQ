@@ -29,7 +29,7 @@ export async function ensureTuckQDatabase() {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_state_updated_at ON tuckq_state (updated_at)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_students (id TEXT PRIMARY KEY, name TEXT NOT NULL, class_name TEXT, email TEXT, card_uid TEXT, password TEXT, account_limit INTEGER NOT NULL DEFAULT 2500, status TEXT NOT NULL DEFAULT 'active', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_students_status ON tuckq_students (status)"),
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_catalogue (id TEXT PRIMARY KEY, day TEXT NOT NULL, name TEXT NOT NULL, category TEXT, price INTEGER NOT NULL, stock INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_catalogue (id TEXT PRIMARY KEY, day TEXT NOT NULL, name TEXT NOT NULL, category TEXT, price INTEGER NOT NULL, stock INTEGER NOT NULL DEFAULT 0, purchase_limit INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_catalogue_day ON tuckq_catalogue (day)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_queue (number INTEGER PRIMARY KEY, student_id TEXT NOT NULL, student_name TEXT NOT NULL, joined TEXT, wait TEXT, status TEXT NOT NULL, slot TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_queue_status ON tuckq_queue (status)"),
@@ -47,6 +47,7 @@ export async function ensureTuckQDatabase() {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
   ]);
   await ensureColumn("tuckq_students", "card_uid", "TEXT");
+  await ensureColumn("tuckq_catalogue", "purchase_limit", "INTEGER NOT NULL DEFAULT 0");
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_students_card_uid ON tuckq_students (card_uid)").run();
 }
 
@@ -84,8 +85,8 @@ export async function saveStructuredState(state: unknown) {
   }
 
   for (const item of catalogue) {
-    statements.push(env.DB.prepare("INSERT INTO tuckq_catalogue (id, day, name, category, price, stock) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(text(item.id), text(item.day), text(item.name), text(item.category), number(item.price), number(item.stock)));
+    statements.push(env.DB.prepare("INSERT INTO tuckq_catalogue (id, day, name, category, price, stock, purchase_limit) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(text(item.id), text(item.day), text(item.name), text(item.category), number(item.price), number(item.stock), number(item.purchaseLimit)));
   }
 
   for (const entry of queue) {
