@@ -827,6 +827,49 @@
     .report-card strong { display: block; }
     .report-card span { color: var(--muted); font-size: 12px; line-height: 1.4; }
 
+    .custom-report {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcff;
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .report-filter-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.3fr repeat(3, minmax(130px, .8fr)) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .report-preview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .report-preview div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      padding: 12px;
+    }
+
+    .report-preview b {
+      display: block;
+      font-size: 20px;
+      color: var(--navy);
+    }
+
+    .report-preview span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
     @media print {
       body * { visibility: hidden; }
       #receiptPreview, #receiptPreview * { visibility: visible; }
@@ -860,7 +903,7 @@
     @media (max-width: 920px) {
       .landing { padding: 18px; align-items: start; }
       .landing-copy { padding: 36px 0 12px; }
-      .landing-stats, .portal-grid, .grid, .metric-row, .form-grid, .big-controls, .pos-grid, .item-grid, .account-summary, .filter-row, .report-grid { grid-template-columns: 1fr; }
+      .landing-stats, .portal-grid, .grid, .metric-row, .form-grid, .big-controls, .pos-grid, .item-grid, .account-summary, .filter-row, .report-grid, .report-filter-grid, .report-preview { grid-template-columns: 1fr; }
       .student-welcome { grid-template-columns: 1fr; }
       .welcome-stat { min-width: 0; }
       .welcome-stats, .student-dashboard { grid-template-columns: 1fr; }
@@ -1384,6 +1427,39 @@ TISB1044, Rehan Pillai</textarea>
               <div class="report-card"><div><strong>Student Ledger</strong><span>Student-wise daily, weekly, monthly and limit balance.</span></div><button class="quiet" id="reportLedgerBtn">Download CSV</button></div>
               <div class="report-card"><div><strong>Inventory</strong><span>Day-wise POS catalogue, price, category and live stock.</span></div><button class="quiet" id="reportInventoryBtn">Download CSV</button></div>
               <div class="report-card"><div><strong>Queue & Bookings</strong><span>Active queue state, booked slots and attendance actions.</span></div><button class="quiet" id="reportQueueBtn">Download CSV</button></div>
+            </div>
+            <div class="custom-report">
+              <div>
+                <p class="section-label">Custom Report Builder</p>
+                <h3>Filtered Export</h3>
+                <p class="muted" style="margin:6px 0 0;">Filter student-wise, date-wise, channel-wise, and status-wise before downloading.</p>
+              </div>
+              <div class="report-filter-grid">
+                <label>Report type
+                  <select id="customReportType">
+                    <option value="sales">Sales & Bills</option>
+                    <option value="ledger">Student Ledger</option>
+                    <option value="preorders">Pre-orders</option>
+                    <option value="queue">Queue & Bookings</option>
+                    <option value="mail">Email Log</option>
+                    <option value="inventory">Inventory</option>
+                  </select>
+                </label>
+                <label>Student
+                  <select id="customReportStudent"></select>
+                </label>
+                <label>From
+                  <input id="customReportFrom" type="date">
+                </label>
+                <label>To
+                  <input id="customReportTo" type="date">
+                </label>
+                <label>Status / channel
+                  <select id="customReportStatus"></select>
+                </label>
+                <button class="primary" id="downloadCustomReportBtn" type="button">Download</button>
+              </div>
+              <div class="report-preview" id="customReportPreview"></div>
             </div>
           </div>
           <div class="panel table-wrap">
@@ -1997,6 +2073,7 @@ TISB1044, Rehan Pillai</textarea>
       renderCatalogueAdmin();
       renderStudentLogins();
       renderMailOutbox();
+      renderCustomReportFilters();
       save();
     }
 
@@ -2733,10 +2810,77 @@ TISB1044, Rehan Pillai</textarea>
       toast(`${filename} downloaded.`);
     }
 
-    function salesReportRows() {
+    function reportDateInRange(dateValue, filters) {
+      if (!filters.from && !filters.to) return true;
+      if (!dateValue) return false;
+      const date = String(dateValue).slice(0, 10);
+      if (filters.from && date < filters.from) return false;
+      if (filters.to && date > filters.to) return false;
+      return true;
+    }
+
+    function selectedReportFilters() {
+      return {
+        type: $("customReportType")?.value || "sales",
+        studentId: $("customReportStudent")?.value || "all",
+        from: $("customReportFrom")?.value || "",
+        to: $("customReportTo")?.value || "",
+        status: $("customReportStatus")?.value || "all"
+      };
+    }
+
+    function matchesStudent(record, filters) {
+      if (!filters.studentId || filters.studentId === "all") return true;
+      return [record.studentId, record.id, record.student_id].map(value => String(value || "").toLowerCase()).includes(filters.studentId.toLowerCase());
+    }
+
+    function filteredSales(filters) {
+      return state.sales.filter(sale => {
+        const channel = String(sale.channel || "POS").toLowerCase();
+        return matchesStudent(sale, filters) &&
+          reportDateInRange(sale.date || sale.iso, filters) &&
+          (filters.status === "all" || channel === filters.status.toLowerCase());
+      });
+    }
+
+    function filteredPreorders(filters) {
+      return state.preorders.filter(order => {
+        const sale = state.sales.find(entry => entry.billNo === order.billNo);
+        return matchesStudent(order, filters) &&
+          reportDateInRange(sale?.date || sale?.iso, filters) &&
+          (filters.status === "all" || String(order.status || "").toLowerCase() === filters.status.toLowerCase());
+      });
+    }
+
+    function filteredQueueRows(filters) {
+      const queueRows = state.queue
+        .filter(entry => matchesStudent(entry, filters))
+        .filter(entry => filters.status === "all" || String(entry.status || "").toLowerCase() === filters.status.toLowerCase())
+        .map(q => ["queue", `#${q.number}`, q.id, q.name, q.status, `${q.joined} / ${q.wait}`]);
+      const bookingRows = state.bookings
+        .filter(entry => matchesStudent(entry, filters))
+        .filter(() => filters.status === "all" || filters.status === "BOOKED")
+        .map(b => ["booking", b.slot, b.id, b.name, "BOOKED", b.created || ""]);
+      return [...queueRows, ...bookingRows];
+    }
+
+    function filteredMail(filters) {
+      return state.mailOutbox.filter(mail => {
+        return matchesStudent(mail, filters) &&
+          reportDateInRange(mail.date, filters) &&
+          (filters.status === "all" || String(mail.status || "").toLowerCase() === filters.status.toLowerCase());
+      });
+    }
+
+    function filteredInventory(filters) {
+      return state.catalogue.filter(item => filters.status === "all" || String(item.day || "").toLowerCase() === filters.status.toLowerCase());
+    }
+
+    function salesReportRows(filters = null) {
+      const sales = filters ? filteredSales(filters) : state.sales;
       return [
         ["bill_no", "date", "time", "student_id", "student_name", "cashier", "channel", "pickup_status", "items", "total"],
-        ...state.sales.map(sale => [
+        ...sales.map(sale => [
           sale.billNo,
           sale.date,
           sale.time,
@@ -2751,28 +2895,35 @@ TISB1044, Rehan Pillai</textarea>
       ];
     }
 
-    function ledgerReportRows() {
+    function ledgerReportRows(filters = null) {
+      const selectedStudents = filters && filters.studentId !== "all"
+        ? state.students.filter(student => student.id === filters.studentId)
+        : state.students;
       return [
         ["student_id", "student_name", "email", "class", "status", "today_spend", "daily_limit", "daily_remaining", "week_spend", "month_spend", "monthly_limit", "remaining_limit"],
-        ...state.students.map(student => {
-          const sales = salesForStudent(student.id);
+        ...selectedStudents
+          .filter(student => !filters || filters.status === "all" || String(student.status || "active").toLowerCase() === filters.status.toLowerCase())
+          .map(student => {
+          const sales = filters ? filteredSales({ ...filters, studentId: student.id }) : salesForStudent(student.id);
           const today = dailySpendFor(student.id);
           const week = sales.filter(sale => inThisWeek(sale.iso)).reduce((sum, sale) => sum + saleTotal(sale), 0);
-          const month = monthlySpendFor(student.id);
+          const month = filters ? sales.reduce((sum, sale) => sum + saleTotal(sale), 0) : monthlySpendFor(student.id);
           const limit = student.accountLimit || 2500;
           return [student.id, student.name, student.email || "", student.className || "", student.status || "active", today, DAILY_PURCHASE_LIMIT, DAILY_PURCHASE_LIMIT - today, week, month, limit, limit - month];
         })
       ];
     }
 
-    function inventoryReportRows() {
+    function inventoryReportRows(filters = null) {
+      const items = filters ? filteredInventory(filters) : state.catalogue;
       return [
         ["item_id", "day", "name", "category", "price", "stock"],
-        ...state.catalogue.map(item => [item.id, item.day, item.name, item.category, item.price, item.stock])
+        ...items.map(item => [item.id, item.day, item.name, item.category, item.price, item.stock])
       ];
     }
 
-    function queueReportRows() {
+    function queueReportRows(filters = null) {
+      if (filters) return [["type", "number_or_slot", "student_id", "student_name", "status", "detail"], ...filteredQueueRows(filters)];
       return [
         ["type", "number_or_slot", "student_id", "student_name", "status", "detail"],
         ...state.queue.map(q => ["queue", `#${q.number}`, q.id, q.name, q.status, `${q.joined} / ${q.wait}`]),
@@ -2781,11 +2932,92 @@ TISB1044, Rehan Pillai</textarea>
       ];
     }
 
-    function mailReportRows() {
+    function preorderReportRows(filters = null) {
+      const preorders = filters ? filteredPreorders(filters) : state.preorders;
+      return [
+        ["bill_no", "student_id", "student_name", "pickup_slot", "status", "items", "total"],
+        ...preorders.map(order => [order.billNo, order.studentId, order.studentName, order.pickupSlot, order.status, (order.items || []).map(item => `${item.qty} x ${item.name} @ ${item.price}`).join("; "), order.total])
+      ];
+    }
+
+    function mailReportRows(filters = null) {
+      const mailRows = filters ? filteredMail(filters) : state.mailOutbox;
       return [
         ["date", "time", "to", "student_id", "student_name", "subject", "body", "type", "status"],
-        ...state.mailOutbox.map(mail => [mail.date, mail.time, mail.to, mail.studentId, mail.studentName, mail.subject, mail.body, mail.type, mail.status])
+        ...mailRows.map(mail => [mail.date, mail.time, mail.to, mail.studentId, mail.studentName, mail.subject, mail.body, mail.type, mail.status])
       ];
+    }
+
+    function customReportRows(filters = selectedReportFilters()) {
+      if (filters.type === "ledger") return ledgerReportRows(filters);
+      if (filters.type === "inventory") return inventoryReportRows(filters);
+      if (filters.type === "queue") return queueReportRows(filters);
+      if (filters.type === "preorders") return preorderReportRows(filters);
+      if (filters.type === "mail") return mailReportRows(filters);
+      return salesReportRows(filters);
+    }
+
+    function customReportSummary(filters = selectedReportFilters()) {
+      const rows = customReportRows(filters).slice(1);
+      const sales = filters.type === "preorders"
+        ? filteredPreorders(filters).map(order => ({ total: order.total }))
+        : filters.type === "sales"
+          ? filteredSales(filters)
+          : [];
+      const total = sales.reduce((sum, sale) => sum + Number(sale.total || saleTotal(sale)), 0);
+      const studentLabel = filters.studentId === "all" ? "All students" : filters.studentId;
+      const dateLabel = filters.from || filters.to ? `${filters.from || "start"} to ${filters.to || "today"}` : "All dates";
+      return [
+        ["Rows", rows.length],
+        ["Total", money(total)],
+        ["Student", studentLabel],
+        ["Date range", dateLabel]
+      ];
+    }
+
+    function renderCustomReportFilters() {
+      const studentSelect = $("customReportStudent");
+      if (!studentSelect) return;
+      const filters = selectedReportFilters();
+      const currentStudent = filters.studentId;
+      studentSelect.innerHTML = `<option value="all">All students</option>` + state.students
+        .map(student => `<option value="${student.id}">${student.name} - ${student.id}</option>`)
+        .join("");
+      studentSelect.value = state.students.some(student => student.id === currentStudent) ? currentStudent : "all";
+
+      const statusOptions = {
+        sales: [["all", "All channels"], ["pos", "POS"], ["pre-order", "Pre-order"]],
+        ledger: [["all", "All statuses"], ["active", "Active"], ["blocked", "Blocked"]],
+        preorders: [["all", "All pickup statuses"], ["ready_for_pickup", "Ready for pickup"], ["picked_up", "Picked up"]],
+        queue: [["all", "All queue statuses"], ["waiting", "Waiting"], ["booked", "Booked"], ["called", "Called"]],
+        mail: [["all", "All email statuses"], ["queued", "Queued"], ["sent", "Sent"], ["draft", "Draft"], ["error", "Error"]],
+        inventory: [["all", "All days"], ...["Everyday", ...DAYS].map(day => [day.toLowerCase(), day])]
+      };
+      const statusSelect = $("customReportStatus");
+      const currentStatus = filters.status;
+      statusSelect.innerHTML = (statusOptions[filters.type] || statusOptions.sales)
+        .map(([value, label]) => `<option value="${value}">${label}</option>`)
+        .join("");
+      statusSelect.value = [...statusSelect.options].some(option => option.value === currentStatus) ? currentStatus : "all";
+      renderCustomReportPreview();
+    }
+
+    function renderCustomReportPreview() {
+      const preview = $("customReportPreview");
+      if (!preview) return;
+      preview.innerHTML = customReportSummary()
+        .map(([label, value]) => `<div><b>${value}</b><span>${label}</span></div>`)
+        .join("");
+    }
+
+    function downloadCustomReport() {
+      const filters = selectedReportFilters();
+      const rows = customReportRows(filters);
+      const pieces = ["tuckq", filters.type, filters.studentId === "all" ? "all-students" : filters.studentId.toLowerCase()];
+      if (filters.from) pieces.push(filters.from);
+      if (filters.to) pieces.push(filters.to);
+      if (filters.status !== "all") pieces.push(filters.status.replace(/[^a-z0-9]+/gi, "-").toLowerCase());
+      downloadCsv(`${pieces.join("-")}.csv`, rows);
     }
 
     function exportToday() {
@@ -2956,6 +3188,13 @@ TISB1044, Rehan Pillai</textarea>
     $("reportInventoryBtn").addEventListener("click", () => downloadCsv(`tisb-inventory-${todayKey()}.csv`, inventoryReportRows()));
     $("reportQueueBtn").addEventListener("click", () => downloadCsv(`tisb-queue-bookings-${todayKey()}.csv`, queueReportRows()));
     $("reportMailBtn").addEventListener("click", () => downloadCsv(`tisb-email-outbox-${todayKey()}.csv`, mailReportRows()));
+    ["customReportType", "customReportStudent", "customReportFrom", "customReportTo", "customReportStatus"].forEach(id => {
+      $(id).addEventListener("change", () => {
+        if (id === "customReportType") renderCustomReportFilters();
+        else renderCustomReportPreview();
+      });
+    });
+    $("downloadCustomReportBtn").addEventListener("click", downloadCustomReport);
 
     async function startApp() {
       await safe(async () => {
