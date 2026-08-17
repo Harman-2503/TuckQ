@@ -141,6 +141,17 @@ npm test
 
 This builds the production bundle and runs a rendered HTML smoke test.
 
+## Cloudflare Deployment
+
+For the school-owned Cloudflare/GitHub launch process, use:
+
+```text
+CLOUDFLARE_DEPLOYMENT.md
+```
+
+That guide covers GitHub setup, D1 database creation, migrations, Cloudflare
+build commands, Azure SSO variables, custom domain setup, and launch checks.
+
 ## Project Shape
 
 - `public/tuckq.html`: production TuckQ interface
@@ -149,7 +160,9 @@ This builds the production bundle and runs a rendered HTML smoke test.
 - `app/api/mail/route.ts`: email sending and outbox persistence
 - `app/api/tuckq/route.ts`: TuckQ API surface
 - `drizzle/`: database migrations
-- `.openai/hosting.json`: Sites hosting configuration
+- `.openai/hosting.json`: current preview Sites hosting configuration
+- `CLOUDFLARE_DEPLOYMENT.md`: school Cloudflare deployment guide
+- `scripts/prepare-cloudflare-deploy.mjs`: patches the built Worker config with the real D1 database ID before Cloudflare deploy
 
 ## Notes
 
