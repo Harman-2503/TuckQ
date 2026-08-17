@@ -10,6 +10,7 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 
 - Student login with ID and password
 - Same-day slot booking between 3:45 PM and 4:45 PM
+- Automatic tuck shop opening at 3:45 PM on weekdays and 4:30 PM on weekends
 - Slot cancellation and queue ticket generation
 - Student pre-ordering with online bill viewing and download
 - POS billing by student ID, with automatic student name lookup

@@ -1040,7 +1040,7 @@
           <span id="userLine">NAFL Valley, Whitefield-Sarjapur Road, Bengaluru</span>
         </div>
         <div class="actions">
-          <div class="pill"><span class="dot" id="stateDot"></span><span id="openLabel">Opening soon: 3:45 PM</span></div>
+          <div class="pill"><span class="dot" id="stateDot"></span><span id="openLabel">Opening schedule loading</span></div>
           <button class="quiet" id="logoutBtn">Log Out</button>
         </div>
       </header>
@@ -1175,7 +1175,7 @@
             </div>
             <div class="actions" style="margin-top:16px;">
               <button class="primary" id="callNextBtn">CALL NEXT 5</button>
-              <button class="secondary" id="toggleOpenBtn">Open Tuck Shop</button>
+              <button class="secondary" id="toggleOpenBtn">Open Tuck Shop Now</button>
               <button class="quiet" id="pauseBtn">Pause Queue</button>
             </div>
           </div>
@@ -1279,7 +1279,7 @@
               <span class="badge blue" id="sharedQueueState">Queue linked</span>
             </div>
             <div class="actions" style="margin-top:16px;">
-              <button class="secondary" id="posToggleOpenBtn">Open Tuck Shop</button>
+              <button class="secondary" id="posToggleOpenBtn">Open Tuck Shop Now</button>
               <button class="primary" id="posCallNextBtn">CALL NEXT 5</button>
               <button class="quiet" id="posServeNextBtn">SERVE NEXT</button>
               <button class="danger" id="posNoShowBtn">NO SHOW</button>
@@ -1377,7 +1377,7 @@
               <div class="form-grid" style="margin-top:16px;">
                 <label>School name<input id="schoolName" value="The International School Bangalore"></label>
                 <label>Allowed email domain<input id="emailDomain" value="@tisb.ac.in"></label>
-                <label>Opening time<input id="openTime" value="3:45 PM"></label>
+                <label>Auto opening schedule<input id="openTime" value="Weekdays 3:45 PM / Weekends 4:30 PM" readonly></label>
                 <label>Slot increment<select id="slotIncrement"><option value="10">10 minutes</option><option value="5">5 minutes</option></select></label>
                 <label>Capacity per 10 min slot<input id="slotCapacity" type="number" min="1" max="80" value="18"></label>
                 <label>Arrival window<select id="arrivalWindow"><option>3 minutes</option><option>2 minutes</option><option>5 minutes</option></select></label>
@@ -1392,7 +1392,7 @@
             <div class="panel">
               <h3>Pre-opening Booking Rules</h3>
               <div class="slot-list" style="margin-top:16px;">
-                <div class="slot"><div><strong>After School</strong><span>3:45 PM to 4:45 PM</span></div><span class="badge green">Enabled</span></div>
+                <div class="slot"><div><strong>Auto open</strong><span>Weekdays 3:45 PM, weekends 4:30 PM</span></div><span class="badge green">Enabled</span></div>
                 <div class="slot"><div><strong>Slot length</strong><span>5 or 10 minute increments</span></div><span class="badge green">Configurable</span></div>
                 <div class="slot"><div><strong>Early booking</strong><span>Students can book before the tuck shop opens</span></div><span class="badge green">Enabled</span></div>
               </div>
@@ -1558,6 +1558,8 @@
     const PRODUCTION_CLEANUP_VERSION = "2026-08-17-no-demo-logins";
     const DEFAULT_STUDENTS = [];
     const LEGACY_DEMO_STUDENT_IDS = Array.from({ length: 6 }, (_, index) => `TISB${1042 + index}`);
+    const WEEKDAY_OPEN_MINUTES = 15 * 60 + 45;
+    const WEEKEND_OPEN_MINUTES = 16 * 60 + 30;
 
     const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const DEFAULT_CATALOGUE = [
@@ -1594,6 +1596,8 @@
     const initialState = {
       user: null,
       open: false,
+      openOverrideDate: null,
+      openOverrideOpen: null,
       paused: false,
       batch: 5,
       slotIncrement: 10,
@@ -1715,6 +1719,8 @@
       merged.slotIncrement = Number(source.slotIncrement) || 10;
       merged.slotCapacity = Number(source.slotCapacity) || 18;
       merged.nextNumber = Number(source.nextNumber) || 36;
+      merged.openOverrideDate = source.openOverrideDate || null;
+      merged.openOverrideOpen = typeof source.openOverrideOpen === "boolean" ? source.openOverrideOpen : null;
       merged.productionCleanupVersion = PRODUCTION_CLEANUP_VERSION;
       merged.bookings.forEach(booking => {
         if (!booking.ticket) {
@@ -1835,6 +1841,52 @@
       const suffix = hours24 >= 12 ? "PM" : "AM";
       const hours12 = ((hours24 + 11) % 12) + 1;
       return `${hours12}:${String(minutes).padStart(2, "0")} ${suffix}`;
+    }
+
+    function minutesSinceMidnight(date = new Date()) {
+      return date.getHours() * 60 + date.getMinutes();
+    }
+
+    function localDateKey(date = new Date()) {
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+
+    function openingSchedule(date = new Date()) {
+      const isWeekend = [0, 6].includes(date.getDay());
+      const openMinutes = isWeekend ? WEEKEND_OPEN_MINUTES : WEEKDAY_OPEN_MINUTES;
+      return {
+        dateKey: localDateKey(date),
+        dayType: isWeekend ? "Weekend" : "Weekday",
+        openMinutes,
+        openLabel: formatMinutes(openMinutes),
+        autoOpen: minutesSinceMidnight(date) >= openMinutes
+      };
+    }
+
+    function applyScheduledOpenState(date = new Date()) {
+      const schedule = openingSchedule(date);
+      if (state.openOverrideDate && state.openOverrideDate !== schedule.dateKey) {
+        state.openOverrideDate = null;
+        state.openOverrideOpen = null;
+      }
+      state.open = state.openOverrideDate === schedule.dateKey && typeof state.openOverrideOpen === "boolean"
+        ? state.openOverrideOpen
+        : schedule.autoOpen;
+      return schedule;
+    }
+
+    function toggleTuckShopOpen() {
+      applyScheduledOpenState();
+      state.open = !state.open;
+      state.openOverrideDate = localDateKey();
+      state.openOverrideOpen = state.open;
+      state.history.unshift(`${state.open ? "Opened" : "Closed"} tuck shop manually`);
+      render();
+      toast(state.open ? "Tuck shop is open." : "Tuck shop is closed for today. Automatic opening resumes tomorrow.");
     }
 
     function buildSlots() {
@@ -2195,15 +2247,20 @@
     }
 
     function render() {
+      const schedule = applyScheduledOpenState();
       const waiting = state.queue.filter(q => q.status === "WAITING");
       const called = state.queue.filter(q => q.status === "CALLED");
       const student = activeStudent();
-      const openText = state.open ? (state.paused ? "Paused for counter reset" : "Tuck Shop Open") : "Opening soon: 3:45 PM";
+      const openText = state.open
+        ? (state.paused ? "Paused for counter reset" : `Tuck Shop Open since ${schedule.openLabel}`)
+        : `Opening soon: ${schedule.openLabel}`;
 
       $("openLabel").textContent = openText;
       $("stateDot").style.background = state.open && !state.paused ? "var(--green)" : "var(--yellow)";
       $("shopStatus").textContent = state.open ? "Tuck Shop Open" : "Tuck Shop Closed";
-      $("shopCopy").textContent = state.open ? "Join the live queue now or reserve a later slot." : "Bookings are open for 3:45-4:45 PM before service starts.";
+      $("shopCopy").textContent = state.open
+        ? `${schedule.dayType} service is live. Join the queue now or reserve a later slot.`
+        : `Bookings are open before service starts. ${schedule.dayType} opening is ${schedule.openLabel}.`;
       $("studentBadge").textContent = state.open ? "Live queue active" : "Pre-open booking";
       $("waitMetric").textContent = waiting.length ? `~${Math.max(3, waiting.length * 2)}m` : "~3m";
       $("waitingMetric").textContent = waiting.length;
@@ -2213,7 +2270,7 @@
       $("servedToday").textContent = state.served;
       $("callNextBtn").textContent = `CALL NEXT ${state.batch}`;
       $("fastCallBtn").textContent = `CALL NEXT ${state.batch}`;
-      $("toggleOpenBtn").textContent = state.open ? "Close Tuck Shop" : "Open Tuck Shop";
+      $("toggleOpenBtn").textContent = state.open ? "Close Tuck Shop" : "Open Tuck Shop Now";
       $("pauseBtn").textContent = state.paused ? "Resume Queue" : "Pause Queue";
       $("fastPauseBtn").textContent = state.paused ? "RESUME" : "PAUSE";
       $("calledRange").textContent = called.length ? `#${called[0].number} - #${called[called.length - 1].number} CALLED` : "No students called";
@@ -2221,7 +2278,7 @@
       $("slotIncrement").value = String(state.slotIncrement);
       $("slotCapacity").value = String(state.slotCapacity);
       $("joinBtn").disabled = !state.open || state.paused;
-      $("slotStatusBadge").textContent = "3:45-4:45 PM";
+      $("slotStatusBadge").textContent = `${schedule.dayType} opens ${schedule.openLabel}`;
       const welcomeStudent = student || state.students[0];
       const dailyLeft = welcomeStudent ? Math.max(0, DAILY_PURCHASE_LIMIT - dailySpendFor(welcomeStudent.id)) : DAILY_PURCHASE_LIMIT;
       const monthlyLeft = welcomeStudent ? Math.max(0, (welcomeStudent.accountLimit || 2500) - monthlySpendFor(welcomeStudent.id)) : 0;
@@ -2229,7 +2286,7 @@
       setText("welcomeMeta", welcomeStudent ? `${welcomeStudent.className || "TISB"} - ${welcomeStudent.id} - ${money(monthlySpendFor(welcomeStudent.id))} this month` : "Book slots, pre-order, and show your online bill at pickup.");
       setText("welcomeLimit", money(dailyLeft));
       setText("welcomeMonthlyLeft", money(monthlyLeft));
-      setText("welcomeStatus", state.open ? "Live queue active" : "Pre-open booking active");
+      setText("welcomeStatus", state.open ? "Live queue active" : `Pre-open booking active - opens ${schedule.openLabel}`);
 
       const myQueueEntry = student ? state.queue.find(q => q.id === student.id) : state.myTicket;
       state.myTicket = myQueueEntry || null;
@@ -2353,7 +2410,7 @@
       $("posBillCount").textContent = todaySales.length;
       $("posQueueWaiting").textContent = waiting;
       $("sharedQueueState").textContent = state.open ? (state.paused ? "Queue paused" : "Queue open") : "Queue closed";
-      $("posToggleOpenBtn").textContent = state.open ? "Close Tuck Shop" : "Open Tuck Shop";
+      $("posToggleOpenBtn").textContent = state.open ? "Close Tuck Shop" : "Open Tuck Shop Now";
       $("posCallNextBtn").textContent = `CALL NEXT ${state.batch}`;
 
       const search = $("itemSearch").value.trim().toLowerCase();
@@ -2563,7 +2620,8 @@
     function joinQueue() {
       const student = requireStudent();
       if (!student) return;
-      if (!state.open || state.paused) return toast("The live queue opens at 3:45 PM. You can book a slot before opening.");
+      const schedule = applyScheduledOpenState();
+      if (!state.open || state.paused) return toast(`The live queue opens at ${schedule.openLabel} today. You can book a slot before opening.`);
       if (state.queue.some(q => q.id === student.id && ["BOOKED", "WAITING", "CALLED"].includes(q.status))) return toast("You already have an active queue ticket.");
       const number = state.nextNumber++;
       const ticket = { number, id: student.id, name: student.name, joined: "Now", wait: "~6m", status: "WAITING" };
@@ -2622,7 +2680,8 @@
     }
 
     function callNext() {
-      if (!state.open) return toast("Open the tuck shop first. Bookings still work before opening.");
+      const schedule = applyScheduledOpenState();
+      if (!state.open) return toast(`Open the tuck shop first. Automatic opening is ${schedule.openLabel} today.`);
       if (state.paused) return toast("Resume the queue before calling students.");
       const waiting = state.queue.filter(q => ["BOOKED", "WAITING"].includes(q.status)).slice(0, state.batch);
       waiting.forEach(q => {
@@ -3512,11 +3571,7 @@
       if (next) rowAction("noshow", next.number);
       else toast("No called student to mark no-show.");
     });
-    $("toggleOpenBtn").addEventListener("click", () => {
-      state.open = !state.open;
-      render();
-      toast(state.open ? "Tuck shop is open." : "Tuck shop is closed. Pre-opening bookings remain available.");
-    });
+    $("toggleOpenBtn").addEventListener("click", toggleTuckShopOpen);
     $("pauseBtn").addEventListener("click", () => {
       state.paused = !state.paused;
       render();
@@ -3602,6 +3657,12 @@
           applyRoleAccess();
         }
         render();
+        setInterval(() => {
+          const wasOpen = state.open;
+          const previousOverrideDate = state.openOverrideDate;
+          applyScheduledOpenState();
+          if (state.open !== wasOpen || state.openOverrideDate !== previousOverrideDate) render();
+        }, 30000);
         if (params.get("sso") === "success" && ssoUser) toast(`Signed in with Microsoft as ${ssoUser.name}.`);
         else if (params.get("sso") === "not-configured") toast("Microsoft SSO needs Azure settings before it can be used.");
         else if (params.get("sso")) toast("Microsoft sign-in could not be completed.");

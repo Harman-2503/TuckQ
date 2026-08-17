@@ -15,6 +15,9 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(oldUi, /createStudentLogin/);
   assert.match(oldUi, /createPosPin/);
   assert.match(oldUi, /Admin can create or manage counter PINs/);
+  assert.match(oldUi, /WEEKDAY_OPEN_MINUTES/);
+  assert.match(oldUi, /WEEKEND_OPEN_MINUTES/);
+  assert.match(oldUi, /Weekdays 3:45 PM \/ Weekends 4:30 PM/);
   assert.match(oldUi, /Queue ticket cancelled/);
   assert.match(oldUi, /salesReportRows/);
   assert.match(oldUi, /Microsoft email and NFC card UID mapping is active/);
