@@ -21,6 +21,8 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 - Downloadable reports for sales, students, and billing
 - Email receipt/warning flow through the hosted `/api/mail` endpoint
 - Cloudflare D1-backed state persistence on the hosted Site
+- Structured database tables for students, sales, sale items, queue, bookings,
+  preorders, menu items, mail events, and settings
 
 ## Demo Access
 
@@ -44,6 +46,34 @@ configured, messages are saved as drafts instead of being sent.
 
 For a real school sender address, verify the school's sending domain in Resend
 and update `MAIL_FROM` to that verified address.
+
+## Database
+
+TuckQ uses Cloudflare D1, a SQLite-compatible hosted database that is already
+attached to the Sites deployment. This is the best free fit for the current app
+because there is no separate server, no extra database account, and the data is
+available from the Sites database viewer.
+
+The app keeps the original full-state backup in `tuckq_state` and mirrors the
+same data into proper operational tables:
+
+- `tuckq_students`
+- `tuckq_catalogue`
+- `tuckq_queue`
+- `tuckq_bookings`
+- `tuckq_sales`
+- `tuckq_sale_items`
+- `tuckq_preorders`
+- `tuckq_mail_events`
+- `tuckq_settings`
+
+Other free database options considered:
+
+- Supabase: good free Postgres, but adds another external account/service.
+- Neon: good free serverless Postgres, but adds another external account/service.
+- MySQL providers: usable, but less natural for this Cloudflare-hosted app.
+
+For this version, D1 gives the fastest and cleanest working production database.
 
 ## Azure SSO Setup
 
