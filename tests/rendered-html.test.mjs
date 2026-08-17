@@ -18,7 +18,9 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(oldUi, /DEFAULT_DAY_SCHEDULE/);
   assert.match(oldUi, /Day-wise Opening Hours/);
   assert.match(oldUi, /Inventory Management/);
-  assert.match(oldUi, /Show Inventory/);
+  assert.match(oldUi, /Search inventory/);
+  assert.doesNotMatch(oldUi, /<h3>Student Logins<\/h3>/);
+  assert.doesNotMatch(oldUi, /Show Inventory/);
   assert.match(oldUi, /Auto open and close/);
   assert.match(oldUi, /Queue ticket cancelled/);
   assert.match(oldUi, /salesReportRows/);

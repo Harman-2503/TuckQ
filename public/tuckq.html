@@ -1470,19 +1470,6 @@
                 <button class="primary" id="createStudentLoginBtn">Create Student Login</button>
               </div>
             </div>
-            <div class="panel">
-              <div class="status-head">
-                <h3>Student Logins</h3>
-                <span class="badge blue" id="loginCount">0 active</span>
-              </div>
-              <div class="filter-row">
-                <label>Search login<input id="loginSearch" placeholder="Name, ID or email"></label>
-                <label>Page size<select id="loginPageSize"><option value="10">10 per page</option><option value="25">25 per page</option><option value="50">50 per page</option></select></label>
-                <label>Visibility<button class="quiet" id="toggleLoginListBtn" type="button">Show Logins</button></label>
-              </div>
-              <div class="roster-list" id="loginList" style="margin-top:16px;"></div>
-              <div class="pager" id="loginPager"></div>
-            </div>
           </div>
           <div class="grid">
             <div class="panel">
@@ -1602,7 +1589,6 @@
             <div class="filter-row">
               <label>Search inventory<input id="inventorySearch" placeholder="Item or category"></label>
               <label>Day<select id="inventoryDayFilter"><option value="all">All days</option></select></label>
-              <label>Visibility<button class="quiet" id="toggleInventoryBtn" type="button">Show Inventory</button></label>
             </div>
             <div class="roster-list" id="inventoryList" style="margin-top:16px;"></div>
             <div class="pager" id="inventoryPager"></div>
@@ -1716,9 +1702,6 @@
     let selectedPortal = "student";
     let rosterVisible = false;
     let rosterPage = 1;
-    let loginListVisible = false;
-    let loginPage = 1;
-    let inventoryVisible = false;
     let inventoryPage = 1;
     const $ = (id) => document.getElementById(id);
     const safe = (fn, label = "Action") => {
@@ -2430,7 +2413,6 @@
       renderAccount();
       renderScheduleEditor(schedule);
       renderCatalogueAdmin();
-      renderStudentLogins();
       renderPosPins();
       renderMailOutbox();
       renderCustomReportFilters();
@@ -2672,12 +2654,6 @@
 
     function renderInventory() {
       $("inventoryCount").textContent = `${state.catalogue.length} items`;
-      $("toggleInventoryBtn").textContent = inventoryVisible ? "Hide Inventory" : "Show Inventory";
-      if (!inventoryVisible) {
-        $("inventoryList").innerHTML = `<div class="student-row"><div><strong>Inventory hidden</strong><span>Click Show Inventory only when you need to inspect stock, prices, day availability, or item limits.</span></div></div>`;
-        $("inventoryPager").innerHTML = "";
-        return;
-      }
       const items = filteredInventoryUi();
       const page = pagedItems(items, inventoryPage, 12);
       inventoryPage = page.page;
@@ -2740,7 +2716,6 @@
         </div>`;
       document.querySelectorAll(`.${prefix}-page`).forEach(btn => btn.addEventListener("click", () => {
         if (prefix === "roster") rosterPage = Number(btn.dataset.page);
-        else if (prefix === "login") loginPage = Number(btn.dataset.page);
         else if (prefix === "inventory") inventoryPage = Number(btn.dataset.page);
         render();
       }));
@@ -2759,37 +2734,6 @@
           <label>Password<input class="${context}-edit" data-id="${id}" data-field="password" type="password" autocomplete="new-password" value="${escapeAttr(student.password || "")}"></label>
           <label>Save<button class="primary save-student" data-id="${id}" data-context="${context}" type="button">Save Details</button></label>
         </div>`;
-    }
-
-    function renderStudentLogins() {
-      const activeCount = state.students.filter(student => student.status !== "blocked").length;
-      $("loginCount").textContent = `${activeCount} active`;
-      $("toggleLoginListBtn").textContent = loginListVisible ? "Hide Logins" : "Show Logins";
-      if (!loginListVisible) {
-        $("loginList").innerHTML = `<div class="student-row"><div><strong>Student logins hidden</strong><span>Use search and Show Logins only when you need to inspect or edit login details.</span></div></div>`;
-        $("loginPager").innerHTML = "";
-        return;
-      }
-      const students = filteredStudents("loginSearch");
-      const pageSize = Number($("loginPageSize")?.value) || 10;
-      const page = pagedItems(students, loginPage, pageSize);
-      loginPage = page.page;
-      $("loginList").innerHTML = page.rows.map(student => {
-        const monthly = monthlySpendFor(student.id);
-        const daily = dailySpendFor(student.id);
-        const dailyRemaining = DAILY_PURCHASE_LIMIT - daily;
-        const tone = student.status === "blocked" ? "red" : dailyRemaining < 50 ? "yellow" : "green";
-        return `
-          <div class="student-row" style="display:block;">
-            <div class="status-head">
-              <div><strong>${escapeHtml(student.name)}</strong><span>${escapeHtml(student.id)} - ${escapeHtml(student.email)} - ${escapeHtml(student.className)} - Card ${escapeHtml(student.cardUid || "not mapped")} - ${money(daily)} today / ${money(monthly)} month</span></div>
-              <span class="badge ${tone}">${student.status === "blocked" ? "Blocked" : `${money(dailyRemaining)} today`}</span>
-            </div>
-            ${studentEditFields(student, "login")}
-          </div>`;
-      }).join("") || `<div class="student-row"><div><strong>No matching student logins</strong><span>Try a different search or import the school student master.</span></div></div>`;
-      renderPager("loginPager", page.page, page.totalPages, students.length, "login");
-      bindStudentEditButtons("login");
     }
 
     function renderPosPins() {
@@ -3995,24 +3939,6 @@
     $("rosterPageSize").addEventListener("change", () => {
       rosterPage = 1;
       renderRoster();
-    });
-    $("toggleLoginListBtn").addEventListener("click", () => {
-      loginListVisible = !loginListVisible;
-      loginPage = 1;
-      render();
-    });
-    $("loginSearch").addEventListener("input", () => {
-      loginPage = 1;
-      renderStudentLogins();
-    });
-    $("loginPageSize").addEventListener("change", () => {
-      loginPage = 1;
-      renderStudentLogins();
-    });
-    $("toggleInventoryBtn").addEventListener("click", () => {
-      inventoryVisible = !inventoryVisible;
-      inventoryPage = 1;
-      renderCatalogueAdmin();
     });
     $("inventorySearch").addEventListener("input", () => {
       inventoryPage = 1;
