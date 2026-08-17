@@ -15,6 +15,13 @@
       "when": 1786947600000,
       "tag": "0001_tuckq_operating_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786971600000,
+      "tag": "0002_tuckq_student_card_uid",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TISB Tuck Shop POS</title>
+  <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --ink: #18213a;
@@ -1230,14 +1231,14 @@
               <div class="toolbar">
                 <div>
                   <h3>Billing Counter</h3>
-                  <p class="muted" style="margin:6px 0 0;">Scan or type a student card, add items, then charge the student's account.</p>
+                  <p class="muted" style="margin:6px 0 0;">Tap NFC card or type student ID; TuckQ auto-loads the imported student account.</p>
                 </div>
                 <label style="min-width:170px;">Day menu
                   <select id="posDay"></select>
                 </label>
               </div>
               <div class="form-grid" style="margin-top:16px;">
-                <label>Student ID card<input id="posStudentId" placeholder="TISB1042"></label>
+                <label>Student ID / NFC card UID<input id="posStudentId" placeholder="Tap card or type TISB1042"></label>
                 <label>Student name<input id="posStudentName" placeholder="Auto-filled if imported"></label>
               </div>
               <div class="actions" style="margin-top:12px;">
@@ -1331,20 +1332,29 @@
           <div class="grid">
             <div class="panel">
               <h3>Import Students</h3>
-              <p class="muted">Paste one student per line as ID card, name. Example: TISB1042, Aarav Nair</p>
-              <textarea id="importText">TISB1042, Aarav Nair
-TISB1043, Diya Sharma
-TISB1044, Rehan Pillai</textarea>
-              <div class="actions" style="margin-top:12px;">
-                <button class="primary" id="importBtn">Import List</button>
-                <button class="quiet" id="clearImportBtn">Clear Box</button>
+              <p class="muted">Upload Excel/CSV or paste rows. Supported columns: Student ID, Name, Email, Class, Card UID, Limit, Status.</p>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>Student master file<input id="studentMasterFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
+                <label>Student master URL<input id="studentMasterUrl" placeholder="Published CSV or direct Excel link"></label>
+                <label>Import mode<select id="studentImportMode"><option value="upsert">Add/update listed students</option><option value="sync">Sync sheet and block missing students</option><option value="delete">Sync and delete missing unused students</option></select></label>
               </div>
+              <textarea id="importText">Student ID,Name,Email,Class,Card UID,Limit,Status
+TISB1042,Aarav Nair,tisb1042@tisb.ac.in,Grade 9 - Nile,CARD1042,2500,active
+TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active</textarea>
+              <div class="actions" style="margin-top:12px;">
+                <button class="primary" id="importBtn">Import Student Master</button>
+                <button class="quiet" id="fetchMasterBtn">Fetch URL</button>
+                <button class="quiet" id="clearImportBtn">Clear Box</button>
+                <button class="quiet" id="templateImportBtn">Download Template</button>
+              </div>
+              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">NFC readers can type card UID into POS; TuckQ will map it to the imported student ID and name.</p>
             </div>
             <div class="panel">
               <h3>Add One Student</h3>
               <div class="form-grid" style="margin-top:16px;">
                 <label>ID card number<input id="manualId" placeholder="TISB1045"></label>
                 <label>Name<input id="manualName" placeholder="Student name"></label>
+                <label>NFC card UID<input id="manualCardUid" placeholder="Tap/read card UID"></label>
               </div>
               <div class="actions" style="margin-top:16px;">
                 <button class="primary" id="manualAddBtn">Add Student</button>
@@ -1397,6 +1407,7 @@ TISB1044, Rehan Pillai</textarea>
                 <label>Student name<input id="loginCreateName" placeholder="Student full name"></label>
                 <label>Class / house<input id="loginCreateClass" placeholder="Grade 9 - Nile"></label>
                 <label>Email<input id="loginCreateEmail" type="email" placeholder="student@tisb.ac.in"></label>
+                <label>NFC card UID<input id="loginCreateCardUid" placeholder="Tap/read card UID"></label>
                 <label>Password<input id="loginCreatePassword" autocomplete="new-password" type="password" placeholder="Create password"></label>
                 <label>Monthly account limit ₹<input id="loginCreateLimit" type="number" min="0" value="2500"></label>
                 <label>Status<select id="loginCreateStatus"><option value="active">Active</option><option value="blocked">Blocked</option></select></label>
@@ -1525,12 +1536,12 @@ TISB1044, Rehan Pillai</textarea>
     const LEGACY_STORAGE = "tisb-queless-state-v1";
     const DAILY_PURCHASE_LIMIT = 280;
     const DEFAULT_STUDENTS = [
-      { id: "TISB1042", name: "Aarav Nair", className: "Grade 9 - Nile", email: "tisb1042@tisb.ac.in", password: "student1042", accountLimit: 2500, status: "active" },
-      { id: "TISB1043", name: "Diya Sharma", className: "Grade 8 - Cauvery", email: "tisb1043@tisb.ac.in", password: "student1043", accountLimit: 2500, status: "active" },
-      { id: "TISB1044", name: "Rehan Pillai", className: "Grade 10 - Ganga", email: "tisb1044@tisb.ac.in", password: "student1044", accountLimit: 3000, status: "active" },
-      { id: "TISB1045", name: "Anika Rao", className: "Grade 7 - Yamuna", email: "tisb1045@tisb.ac.in", password: "student1045", accountLimit: 2200, status: "active" },
-      { id: "TISB1046", name: "Kabir Menon", className: "Grade 11 - Nile", email: "tisb1046@tisb.ac.in", password: "student1046", accountLimit: 3500, status: "active" },
-      { id: "TISB1047", name: "Maya Iyer", className: "Grade 6 - Cauvery", email: "tisb1047@tisb.ac.in", password: "student1047", accountLimit: 2000, status: "active" }
+      { id: "TISB1042", name: "Aarav Nair", className: "Grade 9 - Nile", email: "tisb1042@tisb.ac.in", cardUid: "CARD1042", password: "student1042", accountLimit: 2500, status: "active" },
+      { id: "TISB1043", name: "Diya Sharma", className: "Grade 8 - Cauvery", email: "tisb1043@tisb.ac.in", cardUid: "CARD1043", password: "student1043", accountLimit: 2500, status: "active" },
+      { id: "TISB1044", name: "Rehan Pillai", className: "Grade 10 - Ganga", email: "tisb1044@tisb.ac.in", cardUid: "CARD1044", password: "student1044", accountLimit: 3000, status: "active" },
+      { id: "TISB1045", name: "Anika Rao", className: "Grade 7 - Yamuna", email: "tisb1045@tisb.ac.in", cardUid: "CARD1045", password: "student1045", accountLimit: 2200, status: "active" },
+      { id: "TISB1046", name: "Kabir Menon", className: "Grade 11 - Nile", email: "tisb1046@tisb.ac.in", cardUid: "CARD1046", password: "student1046", accountLimit: 3500, status: "active" },
+      { id: "TISB1047", name: "Maya Iyer", className: "Grade 6 - Cauvery", email: "tisb1047@tisb.ac.in", cardUid: "CARD1047", password: "student1047", accountLimit: 2000, status: "active" }
     ];
 
     const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -1640,6 +1651,7 @@ TISB1044, Rehan Pillai</textarea>
         ...student,
         className: student.className || "Unassigned",
         email: student.email || `${student.id.toLowerCase()}@tisb.ac.in`,
+        cardUid: cleanCardUid(student.cardUid || student.card || student.nfc || student.nfcUid || ""),
         password: String(student.password || student.pin || `student${student.id.slice(-4)}`),
         accountLimit: Number(student.accountLimit) || 2500,
         status: student.status || "active"
@@ -1729,10 +1741,11 @@ TISB1044, Rehan Pillai</textarea>
 
     function applySsoUser(user) {
       const role = ["admin", "student", "teacher", "operator"].includes(user.role) ? user.role : "student";
+      const rosterMatch = role === "student" ? (findStudentByEmail(user.email) || findStudent(user.id)) : null;
       if (role === "student") {
-        const existing = findStudent(user.id);
+        const existing = rosterMatch;
         if (!existing) {
-          addStudent({
+          addOrUpdateStudent(user.id, user.name, {
             id: user.id,
             name: user.name,
             email: user.email,
@@ -1743,7 +1756,14 @@ TISB1044, Rehan Pillai</textarea>
           });
         }
       }
-      state.user = { role, id: user.id, name: user.name, email: user.email, sso: true };
+      const finalStudent = rosterMatch || findStudent(user.id);
+      state.user = {
+        role,
+        id: role === "student" ? (finalStudent?.id || user.id) : user.id,
+        name: role === "student" ? (finalStudent?.name || user.name) : user.name,
+        email: user.email,
+        sso: true
+      };
       save();
     }
 
@@ -1795,12 +1815,54 @@ TISB1044, Rehan Pillai</textarea>
     }
 
     function findStudent(id) {
-      return state.students.find(student => student.id.toLowerCase() === id.toLowerCase());
+      const cleanId = String(id || "").trim().toLowerCase();
+      if (!cleanId) return null;
+      return state.students.find(student => String(student.id || "").toLowerCase() === cleanId);
+    }
+
+    function cleanCardUid(value) {
+      return String(value || "").trim().replace(/\s+/g, "").toUpperCase();
+    }
+
+    function findStudentByEmail(email) {
+      const cleanEmail = String(email || "").trim().toLowerCase();
+      if (!cleanEmail) return null;
+      return state.students.find(student => String(student.email || "").trim().toLowerCase() === cleanEmail);
+    }
+
+    function findStudentByCard(value) {
+      const raw = String(value || "").trim();
+      const card = cleanCardUid(raw);
+      if (!raw) return null;
+      return state.students.find(student =>
+        String(student.id || "").toLowerCase() === raw.toLowerCase() ||
+        String(student.email || "").toLowerCase() === raw.toLowerCase() ||
+        cleanCardUid(student.cardUid) === card
+      );
+    }
+
+    function hasStudentActivity(id) {
+      return state.sales.some(sale => sale.studentId === id) ||
+        state.queue.some(entry => entry.id === id) ||
+        state.bookings.some(entry => entry.id === id) ||
+        state.preorders.some(entry => entry.studentId === id);
+    }
+
+    function removeStudentFromMaster(id) {
+      const cleanId = String(id || "").trim().toUpperCase();
+      const student = findStudent(cleanId);
+      if (!student) return { removed: false, blocked: false };
+      if (hasStudentActivity(cleanId) || DEFAULT_STUDENTS.some(defaultStudent => defaultStudent.id === cleanId)) {
+        student.status = "blocked";
+        return { removed: false, blocked: true };
+      }
+      state.students = state.students.filter(entry => entry.id !== cleanId);
+      return { removed: true, blocked: false };
     }
 
     function addOrUpdateStudent(id, name, details = {}) {
-      const cleanId = id.trim().toUpperCase();
-      const cleanName = name.trim().replace(/\s+/g, " ");
+      const cleanId = String(id || "").trim().toUpperCase();
+      const cleanName = String(name || "").trim().replace(/\s+/g, " ");
       if (!cleanId || !cleanName) return { ok: false, reason: "Both ID card and name are required." };
       if (cleanId.length < 4) return { ok: false, reason: "ID card number looks too short." };
       const existing = findStudent(cleanId);
@@ -1808,6 +1870,7 @@ TISB1044, Rehan Pillai</textarea>
         existing.name = cleanName;
         existing.className = details.className || existing.className || "Unassigned";
         existing.email = details.email || existing.email || `${cleanId.toLowerCase()}@tisb.ac.in`;
+        existing.cardUid = cleanCardUid(details.cardUid || existing.cardUid || "");
         existing.password = String(details.password || existing.password || existing.pin || `student${cleanId.slice(-4)}`);
         existing.accountLimit = Number(details.accountLimit ?? existing.accountLimit ?? 2500);
         existing.status = details.status || existing.status || "active";
@@ -1818,6 +1881,7 @@ TISB1044, Rehan Pillai</textarea>
         name: cleanName,
         className: details.className || "Unassigned",
         email: details.email || `${cleanId.toLowerCase()}@tisb.ac.in`,
+        cardUid: cleanCardUid(details.cardUid || ""),
         password: String(details.password || `student${cleanId.slice(-4)}`),
         accountLimit: Number(details.accountLimit) || 2500,
         status: details.status || "active"
@@ -2277,7 +2341,7 @@ TISB1044, Rehan Pillai</textarea>
         const tone = student.status === "blocked" ? "red" : dailyRemaining < 50 ? "yellow" : "green";
         return `
           <div class="student-row">
-            <div><strong>${student.name}</strong><span>${student.id} - ${student.email} - ${student.className} - password set - ${money(daily)} today / ${money(monthly)} month</span></div>
+            <div><strong>${student.name}</strong><span>${student.id} - ${student.email} - ${student.className} - Card ${student.cardUid || "not mapped"} - password set - ${money(daily)} today / ${money(monthly)} month</span></div>
             <span class="badge ${tone}">${student.status === "blocked" ? "Blocked" : `${money(dailyRemaining)} today`}</span>
           </div>`;
       }).join("");
@@ -2348,7 +2412,7 @@ TISB1044, Rehan Pillai</textarea>
       $("rosterCount").textContent = `${state.students.length} students`;
       $("rosterList").innerHTML = state.students.slice(0, 20).map(student => `
         <div class="student-row">
-          <div><strong>${student.name}</strong><span>${student.id}</span></div>
+          <div><strong>${student.name}</strong><span>${student.id} - ${student.email || "no email"} - Card ${student.cardUid || "not mapped"}</span></div>
           <span class="badge blue">${initials(student.name)}</span>
         </div>`).join("");
     }
@@ -2470,11 +2534,13 @@ TISB1044, Rehan Pillai</textarea>
     }
 
     function addCounterStudent() {
-      const id = $("counterId").value.trim().toUpperCase();
+      const rawId = $("counterId").value.trim();
+      const matched = findStudentByCard(rawId);
+      const id = (matched?.id || rawId).trim().toUpperCase();
       const typedName = $("counterName").value.trim();
-      const existing = findStudent(id);
+      const existing = matched || findStudent(id);
       const name = existing?.name || typedName;
-      const result = addOrUpdateStudent(id, name);
+      const result = addOrUpdateStudent(id, name, { cardUid: existing?.cardUid || (matched ? rawId : "") });
       if (!result.ok) return toast(result.reason);
       if (state.queue.some(q => q.id === result.student.id && ["BOOKED", "WAITING", "CALLED"].includes(q.status))) return toast("That student is already in the queue.");
       const ticket = { number: state.nextNumber++, id: result.student.id, name: result.student.name, joined: "Counter", wait: "~4m", status: "WAITING" };
@@ -2486,32 +2552,182 @@ TISB1044, Rehan Pillai</textarea>
       toast(`${ticket.name} added to queue.`);
     }
 
-    function importStudents() {
-      const lines = $("importText").value.split(/\n+/).map(line => line.trim()).filter(Boolean);
+    function parseDelimited(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let quoted = false;
+      const source = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      const commaCount = (source.match(/,/g) || []).length;
+      const tabCount = (source.match(/\t/g) || []).length;
+      const delimiter = tabCount > commaCount ? "\t" : ",";
+      for (let index = 0; index < source.length; index++) {
+        const char = source[index];
+        const next = source[index + 1];
+        if (char === '"' && quoted && next === '"') {
+          cell += '"';
+          index++;
+        } else if (char === '"') {
+          quoted = !quoted;
+        } else if (char === delimiter && !quoted) {
+          row.push(cell.trim());
+          cell = "";
+        } else if (char === "\n" && !quoted) {
+          row.push(cell.trim());
+          if (row.some(Boolean)) rows.push(row);
+          row = [];
+          cell = "";
+        } else {
+          cell += char;
+        }
+      }
+      row.push(cell.trim());
+      if (row.some(Boolean)) rows.push(row);
+      return rows;
+    }
+
+    function normalizeHeader(value) {
+      return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    }
+
+    function rowValue(row, headers, names, fallbackIndex = -1) {
+      for (const name of names) {
+        const index = headers.indexOf(normalizeHeader(name));
+        if (index >= 0 && row[index] !== undefined) return row[index];
+      }
+      return fallbackIndex >= 0 ? row[fallbackIndex] : "";
+    }
+
+    function rowsToStudents(rows) {
+      if (!rows.length) return [];
+      const first = rows[0].map(normalizeHeader);
+      const hasHeader = first.some(header => ["studentid", "idcard", "name", "email", "carduid", "nfcuid"].includes(header));
+      const headers = hasHeader ? first : [];
+      const body = hasHeader ? rows.slice(1) : rows;
+      return body.map(row => {
+        const id = hasHeader ? rowValue(row, headers, ["Student ID", "ID Card", "ID", "Admission No", "Admission Number"], 0) : row[0];
+        const name = hasHeader ? rowValue(row, headers, ["Name", "Student Name", "Full Name"], 1) : row[1];
+        return {
+          id: String(id || "").trim().toUpperCase(),
+          name: String(name || "").trim(),
+          email: hasHeader ? String(rowValue(row, headers, ["Email", "Microsoft Email", "School Email"], 2) || "").trim().toLowerCase() : String(row[2] || "").trim().toLowerCase(),
+          className: hasHeader ? String(rowValue(row, headers, ["Class", "Grade", "Class / House", "Section"], 3) || "").trim() : String(row[3] || "").trim(),
+          cardUid: cleanCardUid(hasHeader ? rowValue(row, headers, ["Card UID", "NFC UID", "NFC Card", "RFID", "Card Number"], 4) : row[4]),
+          accountLimit: Number(hasHeader ? rowValue(row, headers, ["Limit", "Monthly Limit", "Account Limit"], 5) : row[5]) || 2500,
+          status: String(hasHeader ? rowValue(row, headers, ["Status"], 6) : row[6] || "active").trim().toLowerCase() || "active"
+        };
+      }).filter(student => student.id && student.name);
+    }
+
+    function applyStudentMaster(students) {
+      const seen = new Set();
       let added = 0;
       let updated = 0;
-      let skipped = 0;
-      lines.forEach(line => {
-        const parts = line.split(",").map(part => part.trim()).filter(Boolean);
-        if (parts.length < 2) {
-          skipped++;
+      let blocked = 0;
+      let removed = 0;
+      students.forEach(student => {
+        seen.add(student.id);
+        if (["delete", "deleted", "remove", "removed"].includes(student.status)) {
+          const result = removeStudentFromMaster(student.id);
+          if (result.removed) removed++;
+          if (result.blocked) blocked++;
           return;
         }
-        const result = addOrUpdateStudent(parts[0], parts.slice(1).join(" "));
-        if (!result.ok) skipped++;
-        else if (result.updated) updated++;
-        else added++;
+        const result = addOrUpdateStudent(student.id, student.name, student);
+        if (result.ok && result.updated) updated++;
+        else if (result.ok) added++;
       });
-      state.history.unshift(`Imported ${added} students, updated ${updated}, skipped ${skipped}`);
+      const mode = $("studentImportMode").value;
+      if (mode === "sync" || mode === "delete") {
+        const kept = [];
+        state.students.forEach(student => {
+          if (!seen.has(student.id) && !DEFAULT_STUDENTS.some(defaultStudent => defaultStudent.id === student.id)) {
+            if (mode === "delete" && !hasStudentActivity(student.id)) {
+              removed++;
+              return;
+            }
+            if (student.status !== "blocked") blocked++;
+            student.status = "blocked";
+          }
+          kept.push(student);
+        });
+        state.students = kept;
+      }
+      state.history.unshift(`Student master import: ${added} added, ${updated} updated, ${blocked} blocked, ${removed} removed`);
       render();
-      toast(`Imported ${added}, updated ${updated}, skipped ${skipped}.`);
+      $("studentMasterStatus").textContent = `${added} added, ${updated} updated, ${blocked} blocked, ${removed} removed. Microsoft email and NFC card UID mapping is active.`;
+      toast(`Student master imported: ${added} added, ${updated} updated.`);
+    }
+
+    function importStudents() {
+      const students = rowsToStudents(parseDelimited($("importText").value));
+      if (!students.length) return toast("No valid students found. Use columns: Student ID, Name, Email, Class, Card UID.");
+      applyStudentMaster(students);
+    }
+
+    async function importStudentMasterFile() {
+      const file = $("studentMasterFile").files?.[0];
+      if (!file) return;
+      try {
+        let rows = [];
+        if (/\.xlsx?$/i.test(file.name)) {
+          if (!window.XLSX) {
+            $("studentMasterStatus").textContent = "Excel parser is still loading. Try again or upload CSV.";
+            return toast("Excel parser is loading. Try again in a moment.");
+          }
+          const data = await file.arrayBuffer();
+          const workbook = XLSX.read(data);
+          rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, raw: false, defval: "" });
+        } else {
+          rows = parseDelimited(await file.text());
+        }
+        const students = rowsToStudents(rows);
+        if (!students.length) return toast("No valid students found in file.");
+        $("importText").value = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+        applyStudentMaster(students);
+      } catch (error) {
+        $("studentMasterStatus").textContent = `Import failed: ${error.message}`;
+        toast("Student master import failed.");
+      }
+    }
+
+    async function fetchStudentMasterUrl() {
+      const url = $("studentMasterUrl").value.trim();
+      if (!url) return toast("Paste a published CSV or direct Excel link first.");
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Could not fetch file (${response.status})`);
+        let rows = [];
+        if (/\.xlsx?(\?|$)/i.test(url)) {
+          if (!window.XLSX) return toast("Excel parser is loading. Try again in a moment.");
+          const workbook = XLSX.read(await response.arrayBuffer());
+          rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, raw: false, defval: "" });
+        } else {
+          rows = parseDelimited(await response.text());
+        }
+        const students = rowsToStudents(rows);
+        if (!students.length) return toast("No valid students found at that link.");
+        $("importText").value = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+        applyStudentMaster(students);
+      } catch (error) {
+        $("studentMasterStatus").textContent = `Fetch failed: ${error.message}. For private Excel files, upload the file or publish/export as CSV.`;
+        toast("Student master URL could not be fetched.");
+      }
+    }
+
+    function downloadStudentMasterTemplate() {
+      downloadCsv("tuckq-student-master-template.csv", [
+        ["Student ID", "Name", "Email", "Class", "Card UID", "Limit", "Status"],
+        ["TISB1042", "Aarav Nair", "tisb1042@tisb.ac.in", "Grade 9 - Nile", "CARD1042", "2500", "active"]
+      ]);
     }
 
     function manualAddStudent() {
-      const result = addOrUpdateStudent($("manualId").value, $("manualName").value);
+      const result = addOrUpdateStudent($("manualId").value, $("manualName").value, { cardUid: $("manualCardUid").value });
       if (!result.ok) return toast(result.reason);
       $("manualId").value = "";
       $("manualName").value = "";
+      $("manualCardUid").value = "";
       state.history.unshift(`${result.updated ? "Updated" : "Added"} ${result.student.name}`);
       render();
       toast(`${result.student.name} ${result.updated ? "updated" : "added"}.`);
@@ -2525,6 +2741,7 @@ TISB1044, Rehan Pillai</textarea>
       const result = addOrUpdateStudent(id, name, {
         className: $("loginCreateClass").value.trim() || "Unassigned",
         email: $("loginCreateEmail").value.trim() || `${id.trim().toLowerCase()}@tisb.ac.in`,
+        cardUid: $("loginCreateCardUid").value.trim(),
         password,
         accountLimit: Math.max(0, Number($("loginCreateLimit").value) || 0),
         status: $("loginCreateStatus").value
@@ -2534,6 +2751,7 @@ TISB1044, Rehan Pillai</textarea>
       $("loginCreateName").value = "";
       $("loginCreateClass").value = "";
       $("loginCreateEmail").value = "";
+      $("loginCreateCardUid").value = "";
       $("loginCreatePassword").value = "";
       $("loginCreateLimit").value = "2500";
       $("loginCreateStatus").value = "active";
@@ -2548,6 +2766,7 @@ TISB1044, Rehan Pillai</textarea>
       $("loginCreateName").value = "New Student";
       $("loginCreateClass").value = "Grade 8 - House";
       $("loginCreateEmail").value = `tisb${number}@tisb.ac.in`;
+      $("loginCreateCardUid").value = `CARD${number}`;
       $("loginCreatePassword").value = `student${String(number).slice(-4)}`;
       $("loginCreateLimit").value = "2500";
       $("loginCreateStatus").value = "active";
@@ -2713,22 +2932,24 @@ TISB1044, Rehan Pillai</textarea>
     }
 
     function loadPosStudent() {
-      const id = $("posStudentId").value.trim().toUpperCase();
-      if (!id) return toast("Enter or scan a student ID card.");
-      const student = findStudent(id);
+      const raw = $("posStudentId").value.trim();
+      if (!raw) return toast("Enter ID or tap NFC card.");
+      const student = findStudentByCard(raw);
       if (student) {
+        $("posStudentId").value = student.id;
         $("posStudentName").value = student.name;
-        toast(`${student.name} loaded.`);
+        toast(`${student.name} loaded from ${cleanCardUid(raw) === cleanCardUid(student.cardUid) ? "NFC card" : "student ID"}.`);
       } else {
         $("posStudentName").value = "";
-        toast("New student. Enter name once, then billing can continue.");
+        toast("Card not mapped. Import the student master or enter student ID and name once.");
       }
     }
 
     function syncPosStudentName(showToast = false) {
-      const id = $("posStudentId").value.trim().toUpperCase();
-      const student = id ? findStudent(id) : null;
+      const raw = $("posStudentId").value.trim();
+      const student = raw ? findStudentByCard(raw) : null;
       if (student) {
+        $("posStudentId").value = student.id;
         $("posStudentName").value = student.name;
         if (showToast) toast(`${student.name} loaded.`);
       }
@@ -2736,10 +2957,11 @@ TISB1044, Rehan Pillai</textarea>
     }
 
     function checkoutCart() {
-      const id = $("posStudentId").value.trim().toUpperCase();
+      const matched = findStudentByCard($("posStudentId").value);
+      const id = (matched?.id || $("posStudentId").value).trim().toUpperCase();
       const name = $("posStudentName").value.trim();
       if (!state.cart.length) return toast("Add items before checkout.");
-      const result = addOrUpdateStudent(id, name);
+      const result = addOrUpdateStudent(id, matched?.name || name, { cardUid: matched?.cardUid || "" });
       if (!result.ok) return toast(result.reason);
       if (result.student.status === "blocked") return toast("This student account is blocked by Admin.");
       const stockProblem = state.cart.find(line => {
@@ -2900,7 +3122,7 @@ TISB1044, Rehan Pillai</textarea>
         ? state.students.filter(student => student.id === filters.studentId)
         : state.students;
       return [
-        ["student_id", "student_name", "email", "class", "status", "today_spend", "daily_limit", "daily_remaining", "week_spend", "month_spend", "monthly_limit", "remaining_limit"],
+        ["student_id", "student_name", "email", "class", "card_uid", "status", "today_spend", "daily_limit", "daily_remaining", "week_spend", "month_spend", "monthly_limit", "remaining_limit"],
         ...selectedStudents
           .filter(student => !filters || filters.status === "all" || String(student.status || "active").toLowerCase() === filters.status.toLowerCase())
           .map(student => {
@@ -2909,7 +3131,7 @@ TISB1044, Rehan Pillai</textarea>
           const week = sales.filter(sale => inThisWeek(sale.iso)).reduce((sum, sale) => sum + saleTotal(sale), 0);
           const month = filters ? sales.reduce((sum, sale) => sum + saleTotal(sale), 0) : monthlySpendFor(student.id);
           const limit = student.accountLimit || 2500;
-          return [student.id, student.name, student.email || "", student.className || "", student.status || "active", today, DAILY_PURCHASE_LIMIT, DAILY_PURCHASE_LIMIT - today, week, month, limit, limit - month];
+          return [student.id, student.name, student.email || "", student.className || "", student.cardUid || "", student.status || "active", today, DAILY_PURCHASE_LIMIT, DAILY_PURCHASE_LIMIT - today, week, month, limit, limit - month];
         })
       ];
     }
@@ -3164,7 +3386,10 @@ TISB1044, Rehan Pillai</textarea>
     $("posServeNextBtn").addEventListener("click", serveNext);
     $("posNoShowBtn").addEventListener("click", () => $("noShowBtn").click());
     $("importBtn").addEventListener("click", importStudents);
+    $("fetchMasterBtn").addEventListener("click", fetchStudentMasterUrl);
+    $("studentMasterFile").addEventListener("change", importStudentMasterFile);
     $("clearImportBtn").addEventListener("click", () => $("importText").value = "");
+    $("templateImportBtn").addEventListener("click", downloadStudentMasterTemplate);
     $("manualAddBtn").addEventListener("click", manualAddStudent);
     $("slotIncrement").addEventListener("change", () => {
       state.slotIncrement = Number($("slotIncrement").value);

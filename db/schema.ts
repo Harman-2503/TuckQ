@@ -12,6 +12,7 @@ export const tuckqStudents = sqliteTable("tuckq_students", {
   name: text("name").notNull(),
   className: text("class_name"),
   email: text("email"),
+  cardUid: text("card_uid"),
   password: text("password"),
   accountLimit: integer("account_limit").notNull().default(2500),
   status: text("status").notNull().default("active"),

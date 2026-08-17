@@ -27,7 +27,7 @@ export async function ensureTuckQDatabase() {
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_state_updated_at ON tuckq_state (updated_at)"),
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_students (id TEXT PRIMARY KEY, name TEXT NOT NULL, class_name TEXT, email TEXT, password TEXT, account_limit INTEGER NOT NULL DEFAULT 2500, status TEXT NOT NULL DEFAULT 'active', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_students (id TEXT PRIMARY KEY, name TEXT NOT NULL, class_name TEXT, email TEXT, card_uid TEXT, password TEXT, account_limit INTEGER NOT NULL DEFAULT 2500, status TEXT NOT NULL DEFAULT 'active', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_students_status ON tuckq_students (status)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_catalogue (id TEXT PRIMARY KEY, day TEXT NOT NULL, name TEXT NOT NULL, category TEXT, price INTEGER NOT NULL, stock INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_catalogue_day ON tuckq_catalogue (day)"),
@@ -46,6 +46,14 @@ export async function ensureTuckQDatabase() {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_mail_events_student_id ON tuckq_mail_events (student_id)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
   ]);
+  await ensureColumn("tuckq_students", "card_uid", "TEXT");
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_students_card_uid ON tuckq_students (card_uid)").run();
+}
+
+async function ensureColumn(table: string, column: string, definition: string) {
+  const result = await env.DB.prepare(`PRAGMA table_info(${table})`).all<{ name?: string }>();
+  const exists = result.results?.some((row) => row.name === column);
+  if (!exists) await env.DB.prepare(`ALTER TABLE ${table} ADD ${column} ${definition}`).run();
 }
 
 export async function saveStructuredState(state: unknown) {
@@ -71,8 +79,8 @@ export async function saveStructuredState(state: unknown) {
   ];
 
   for (const student of students) {
-    statements.push(env.DB.prepare("INSERT INTO tuckq_students (id, name, class_name, email, password, account_limit, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(text(student.id), text(student.name), text(student.className), text(student.email), text(student.password), number(student.accountLimit, 2500), text(student.status || "active")));
+    statements.push(env.DB.prepare("INSERT INTO tuckq_students (id, name, class_name, email, card_uid, password, account_limit, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(text(student.id), text(student.name), text(student.className), text(student.email), text(student.cardUid), text(student.password), number(student.accountLimit, 2500), text(student.status || "active")));
   }
 
   for (const item of catalogue) {
