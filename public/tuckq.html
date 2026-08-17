@@ -767,6 +767,22 @@
 
     .pickup-bill strong { color: var(--navy); }
 
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .student-edit-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
     .bill-modal {
       position: fixed;
       inset: 0;
@@ -946,16 +962,16 @@
       </div>
       <div class="landing-copy">
         <h2>TuckQ</h2>
-        <p>Production-ready tuck shop software for TISB: student slot booking, pre-orders, POS billing, emailed bills, queue operations, admin reports, and account limits in one local system.</p>
+        <p>Production-ready tuck shop software for TISB: student slot booking, pre-orders, POS billing, optional emailed bills, queue operations, admin reports, and account limits in one local system.</p>
       </div>
       <div class="portal-grid">
         <button class="portal-card portal-open" data-portal="student">
           <div class="portal-icon">ST</div>
-          <div><strong>Student Portal</strong><span>Book slots, pre-order items, receive the bill by email, and track daily, weekly, and monthly tuck shop billing.</span></div>
+          <div><strong>Student Portal</strong><span>Book slots, pre-order items, view or request bills by email, and track daily, weekly, and monthly tuck shop billing.</span></div>
         </button>
         <button class="portal-card portal-open" data-portal="operator">
           <div class="portal-icon">₹</div>
-          <div><strong>POS Portal</strong><span>Scan a student card, auto-load the name, add day-wise items, email the bill, and print a proper receipt.</span></div>
+          <div><strong>POS Portal</strong><span>Scan a student card, auto-load the name, add day-wise items, print bills, and email receipts only when requested.</span></div>
         </button>
         <button class="portal-card portal-open" data-portal="teacher">
           <div class="portal-icon">TR</div>
@@ -1121,7 +1137,7 @@
             <div class="panel">
               <div class="status-head">
                 <h3>My Online Bills</h3>
-                <span class="badge green">Email + pickup</span>
+                <span class="badge green">View + pickup</span>
               </div>
               <div class="history-list" id="studentBills"></div>
             </div>
@@ -1131,7 +1147,7 @@
             <div class="toolbar">
               <div>
                 <h3>Pre-order For Pickup</h3>
-                <p class="muted" style="margin:6px 0 0;">Same-day pre-orders only. Choose from today's menu, get the bill by email, then show the bill number at pickup.</p>
+                <p class="muted" style="margin:6px 0 0;">Same-day pre-orders only. Choose from today's menu, view or download the bill, then show the bill number at pickup.</p>
               </div>
               <span class="badge blue" id="preorderDayLabel">Today only</span>
             </div>
@@ -1147,7 +1163,7 @@
                     <b id="preorderTotal">₹0</b>
                     <span>Online bill total</span>
                   </div>
-                  <button class="primary" id="confirmPreorderBtn">Confirm Pre-order & Email Bill</button>
+                  <button class="primary" id="confirmPreorderBtn">Confirm Pre-order</button>
                 </div>
               </div>
             </div>
@@ -1339,15 +1355,16 @@
                 <label>Student master file<input id="studentMasterFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
                 <label>Student master URL<input id="studentMasterUrl" placeholder="Published CSV or direct Excel link"></label>
                 <label>Import mode<select id="studentImportMode"><option value="upsert">Add/update listed students</option><option value="sync">Sync sheet and block missing students</option><option value="delete">Sync and delete missing unused students</option></select></label>
+                <label>Low-touch sync<select id="studentMasterAutoSync"><option value="off">Manual only</option><option value="on">Auto-sync from URL</option></select></label>
               </div>
               <textarea id="importText">Student ID,Name,Email,Class,Card UID,Limit,Status</textarea>
               <div class="actions" style="margin-top:12px;">
                 <button class="primary" id="importBtn">Import Student Master</button>
-                <button class="quiet" id="fetchMasterBtn">Fetch URL</button>
+                <button class="quiet" id="fetchMasterBtn">Sync URL Now</button>
                 <button class="quiet" id="clearImportBtn">Clear Box</button>
                 <button class="quiet" id="templateImportBtn">Download Template</button>
               </div>
-              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">NFC readers can type card UID into POS; TuckQ will map it to the imported student ID and name.</p>
+              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">Paste a published school sheet/CSV URL once, set Auto-sync from URL, and TuckQ will refresh it periodically with NFC card mappings.</p>
             </div>
             <div class="panel">
               <h3>Add One Student</h3>
@@ -1366,7 +1383,13 @@
               <h3>Student Roster</h3>
               <span class="badge blue" id="rosterCount">0 students</span>
             </div>
+            <div class="filter-row">
+              <label>Search student<input id="rosterSearch" placeholder="Name, ID, email, class or card"></label>
+              <label>Page size<select id="rosterPageSize"><option value="25">25 per page</option><option value="50">50 per page</option><option value="100">100 per page</option></select></label>
+              <label>Visibility<button class="quiet" id="toggleRosterBtn" type="button">Show Students</button></label>
+            </div>
             <div class="roster-list" id="rosterList" style="margin-top:16px;"></div>
+            <div class="pager" id="rosterPager"></div>
           </div>
         </section>
 
@@ -1381,7 +1404,6 @@
                 <label>Slot increment<select id="slotIncrement"><option value="10">10 minutes</option><option value="5">5 minutes</option></select></label>
                 <label>Capacity per 10 min slot<input id="slotCapacity" type="number" min="1" max="80" value="18"></label>
                 <label>Arrival window<select id="arrivalWindow"><option>3 minutes</option><option>2 minutes</option><option>5 minutes</option></select></label>
-                <label>Warning threshold<select id="warningThreshold"><option>5 people ahead</option><option>3 people ahead</option><option>10 people ahead</option></select></label>
                 <label>Queue mode<select id="queueMode"><option>Hybrid queue + booking</option><option>Virtual queue only</option><option>Slot booking only</option></select></label>
               </div>
               <div class="actions" style="margin-top:16px;">
@@ -1404,11 +1426,11 @@
               <div class="form-grid" style="margin-top:16px;">
                 <label>ID card number<input id="loginCreateId" placeholder="TISB2050"></label>
                 <label>Student name<input id="loginCreateName" placeholder="Student full name"></label>
-                <label>Class / house<input id="loginCreateClass" placeholder="Grade 9 - Nile"></label>
+                <label>Class<input id="loginCreateClass" placeholder="Grade 9 A"></label>
                 <label>Email<input id="loginCreateEmail" type="email" placeholder="student@tisb.ac.in"></label>
                 <label>NFC card UID<input id="loginCreateCardUid" placeholder="Tap/read card UID"></label>
                 <label>Password<input id="loginCreatePassword" autocomplete="new-password" type="password" placeholder="Create password"></label>
-                <label>Monthly account limit ₹<input id="loginCreateLimit" type="number" min="0" value="2500"></label>
+                <label>Monthly account limit ₹<input id="loginCreateLimit" type="number" min="0" value="5000"></label>
                 <label>Status<select id="loginCreateStatus"><option value="active">Active</option><option value="blocked">Blocked</option></select></label>
               </div>
               <div class="actions" style="margin-top:16px;">
@@ -1420,7 +1442,13 @@
                 <h3>Student Logins</h3>
                 <span class="badge blue" id="loginCount">0 active</span>
               </div>
+              <div class="filter-row">
+                <label>Search login<input id="loginSearch" placeholder="Name, ID or email"></label>
+                <label>Page size<select id="loginPageSize"><option value="10">10 per page</option><option value="25">25 per page</option><option value="50">50 per page</option></select></label>
+                <label>Visibility<button class="quiet" id="toggleLoginListBtn" type="button">Show Logins</button></label>
+              </div>
               <div class="roster-list" id="loginList" style="margin-top:16px;"></div>
+              <div class="pager" id="loginPager"></div>
             </div>
           </div>
           <div class="grid">
@@ -1495,8 +1523,8 @@
           <div class="panel table-wrap">
             <div class="status-head">
               <div>
-                <p class="section-label">Automatic Emails</p>
-                <h3>Email Outbox</h3>
+                <p class="section-label">Manual Bill Emails</p>
+                <h3>Bill Email Log</h3>
               </div>
               <div class="actions">
                 <span class="badge blue" id="mailCount">0 queued</span>
@@ -1546,6 +1574,7 @@
       <div class="receipt" id="billModalBody"></div>
       <div class="actions">
         <button class="primary" id="downloadOpenBillBtn" type="button">Download Bill</button>
+        <button class="secondary" id="emailOpenBillBtn" type="button">Email Bill</button>
         <button class="quiet" id="printOpenBillBtn" type="button">Print</button>
       </div>
     </div>
@@ -1617,6 +1646,10 @@
       preorders: [],
       sales: [],
       mailOutbox: [],
+      studentMasterUrl: "",
+      studentMasterAutoSync: false,
+      studentMasterLastSync: "",
+      studentMasterSyncMode: "upsert",
       lastReceipt: null,
       history: [],
       productionCleanupVersion: PRODUCTION_CLEANUP_VERSION
@@ -1624,6 +1657,10 @@
 
     let state = loadState();
     let selectedPortal = "student";
+    let rosterVisible = false;
+    let rosterPage = 1;
+    let loginListVisible = false;
+    let loginPage = 1;
     const $ = (id) => document.getElementById(id);
     const safe = (fn, label = "Action") => {
       try {
@@ -1648,6 +1685,14 @@
       const el = $(id);
       if (el) el.innerHTML = value;
     };
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;"
+    }[char]));
+    const escapeAttr = escapeHtml;
     const SERVER_MODE = ["http:", "https:"].includes(location.protocol);
     let saveTimer = null;
 
@@ -1673,7 +1718,7 @@
         email: student.email || `${student.id.toLowerCase()}@tisb.ac.in`,
         cardUid: cleanCardUid(student.cardUid || student.card || student.nfc || student.nfcUid || ""),
         password: String(student.password || student.pin || `student${student.id.slice(-4)}`),
-        accountLimit: Number(student.accountLimit) || 2500,
+        accountLimit: Number(student.accountLimit) || 5000,
         status: student.status || "active"
       }));
       merged.bookings = Array.isArray(source.bookings) ? source.bookings : [];
@@ -1691,6 +1736,10 @@
       merged.preorders = Array.isArray(source.preorders) ? source.preorders : [];
       merged.sales = Array.isArray(source.sales) ? source.sales : [];
       merged.mailOutbox = Array.isArray(source.mailOutbox) ? source.mailOutbox : [];
+      merged.studentMasterUrl = source.studentMasterUrl || "";
+      merged.studentMasterAutoSync = !!source.studentMasterAutoSync;
+      merged.studentMasterLastSync = source.studentMasterLastSync || "";
+      merged.studentMasterSyncMode = source.studentMasterSyncMode || "upsert";
       if (needsProductionCleanup) {
         merged.students = merged.students.filter(student => !demoIds.has(String(student.id || "").toUpperCase()));
         ["queue", "bookings", "sales", "preorders", "mailOutbox"].forEach(key => {
@@ -1802,7 +1851,7 @@
             email: user.email,
             password: `azure-${user.id.toLowerCase()}`,
             className: "Azure SSO",
-            accountLimit: 2500,
+            accountLimit: 5000,
             status: "active"
           });
         }
@@ -1971,7 +2020,7 @@
         existing.email = details.email || existing.email || `${cleanId.toLowerCase()}@tisb.ac.in`;
         existing.cardUid = cleanCardUid(details.cardUid || existing.cardUid || "");
         existing.password = String(details.password || existing.password || existing.pin || `student${cleanId.slice(-4)}`);
-        existing.accountLimit = Number(details.accountLimit ?? existing.accountLimit ?? 2500);
+        existing.accountLimit = Number(details.accountLimit ?? existing.accountLimit ?? 5000);
         existing.status = details.status || existing.status || "active";
         return { ok: true, updated: true, student: existing };
       }
@@ -1982,7 +2031,7 @@
         email: details.email || `${cleanId.toLowerCase()}@tisb.ac.in`,
         cardUid: cleanCardUid(details.cardUid || ""),
         password: String(details.password || `student${cleanId.slice(-4)}`),
-        accountLimit: Number(details.accountLimit) || 2500,
+        accountLimit: Number(details.accountLimit) || 5000,
         status: details.status || "active"
       };
       state.students.push(student);
@@ -2161,14 +2210,7 @@
     }
 
     function queueEmail(student, subject, body, type = "queue") {
-      if (!student?.email) return;
-      const duplicate = state.mailOutbox.some(mail =>
-        mail.to === student.email &&
-        mail.subject === subject &&
-        mail.date === todayKey() &&
-        mail.type === type
-      );
-      if (duplicate) return;
+      if (!student?.email) return false;
       const mail = {
         id: `MAIL-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
         date: todayKey(),
@@ -2183,6 +2225,7 @@
       };
       state.mailOutbox.unshift(mail);
       sendQueuedEmail(mail);
+      return true;
     }
 
     async function sendQueuedEmail(mail) {
@@ -2202,23 +2245,6 @@
       }
       save();
       renderMailOutbox();
-    }
-
-    function maybeSendAlmostWarnings() {
-      const waiting = state.queue.filter(q => ["WAITING", "BOOKED"].includes(q.status));
-      const threshold = parseInt($("warningThreshold")?.value || "5", 10) || 5;
-      waiting.forEach((entry, index) => {
-        const peopleAhead = index;
-        if (peopleAhead <= threshold && peopleAhead > 0) {
-          const student = findStudent(entry.id);
-          queueEmail(
-            student,
-            "TISB Tuck Shop: Almost your turn",
-            `Hi ${entry.name}, only ${peopleAhead} student${peopleAhead === 1 ? "" : "s"} are ahead of you in the tuck shop queue. Please start heading towards the tuck shop.`,
-            `almost-${entry.number}`
-          );
-        }
-      });
     }
 
     function inThisWeek(dateText) {
@@ -2277,11 +2303,14 @@
       $("userLine").textContent = state.user ? `${state.user.name} (${state.user.id}) - ${state.user.role}` : "NAFL Valley, Whitefield-Sarjapur Road, Bengaluru";
       $("slotIncrement").value = String(state.slotIncrement);
       $("slotCapacity").value = String(state.slotCapacity);
+      if ($("studentMasterUrl") && document.activeElement !== $("studentMasterUrl")) $("studentMasterUrl").value = state.studentMasterUrl || "";
+      if ($("studentMasterAutoSync")) $("studentMasterAutoSync").value = state.studentMasterAutoSync ? "on" : "off";
+      if ($("studentImportMode") && state.studentMasterSyncMode) $("studentImportMode").value = state.studentMasterSyncMode;
       $("joinBtn").disabled = !state.open || state.paused;
       $("slotStatusBadge").textContent = `${schedule.dayType} opens ${schedule.openLabel}`;
       const welcomeStudent = student || state.students[0];
       const dailyLeft = welcomeStudent ? Math.max(0, DAILY_PURCHASE_LIMIT - dailySpendFor(welcomeStudent.id)) : DAILY_PURCHASE_LIMIT;
-      const monthlyLeft = welcomeStudent ? Math.max(0, (welcomeStudent.accountLimit || 2500) - monthlySpendFor(welcomeStudent.id)) : 0;
+      const monthlyLeft = welcomeStudent ? Math.max(0, (welcomeStudent.accountLimit || 5000) - monthlySpendFor(welcomeStudent.id)) : 0;
       setText("welcomeName", `Welcome, ${welcomeStudent?.name || "Student"}`);
       setText("welcomeMeta", welcomeStudent ? `${welcomeStudent.className || "TISB"} - ${welcomeStudent.id} - ${money(monthlySpendFor(welcomeStudent.id))} this month` : "Book slots, pre-order, and show your online bill at pickup.");
       setText("welcomeLimit", money(dailyLeft));
@@ -2395,10 +2424,12 @@
           <div class="actions">
             <button class="quiet view-bill" data-bill="${sale.billNo}">View Bill</button>
             <button class="secondary download-bill" data-bill="${sale.billNo}">Download</button>
+            <button class="quiet email-bill" data-bill="${sale.billNo}">Email</button>
           </div>
         </div>`).join("") || `<div class="history-item"><div><strong>No bills yet</strong><span>Pre-orders and POS purchases will appear here.</span></div></div>`;
       document.querySelectorAll(".view-bill").forEach(btn => btn.addEventListener("click", () => viewBill(btn.dataset.bill)));
       document.querySelectorAll(".download-bill").forEach(btn => btn.addEventListener("click", () => downloadBill(btn.dataset.bill)));
+      document.querySelectorAll(".email-bill").forEach(btn => btn.addEventListener("click", () => emailBill(btn.dataset.bill)));
     }
 
     function renderPos() {
@@ -2479,10 +2510,11 @@
           <td>${sale.date} ${sale.time}</td>
           <td>${sale.items.map(item => `<div class="bill-text">${item.qty} x ${item.name} @ ${money(item.price)} each = ${money(item.qty * item.price)}</div>`).join("")}</td>
           <td>${money(saleTotal(sale))}</td>
-          <td><div class="actions"><button class="quiet account-view-bill" data-bill="${sale.billNo}">View</button><button class="secondary account-download-bill" data-bill="${sale.billNo}">Download</button></div></td>
+          <td><div class="actions"><button class="quiet account-view-bill" data-bill="${sale.billNo}">View</button><button class="secondary account-download-bill" data-bill="${sale.billNo}">Download</button><button class="quiet account-email-bill" data-bill="${sale.billNo}">Email</button></div></td>
         </tr>`).join("") || `<tr><td colspan="5">No billing history for this student yet.</td></tr>`;
       document.querySelectorAll(".account-view-bill").forEach(btn => btn.addEventListener("click", () => viewBill(btn.dataset.bill)));
       document.querySelectorAll(".account-download-bill").forEach(btn => btn.addEventListener("click", () => downloadBill(btn.dataset.bill)));
+      document.querySelectorAll(".account-email-bill").forEach(btn => btn.addEventListener("click", () => emailBill(btn.dataset.bill)));
     }
 
     function renderPreorderPickups() {
@@ -2506,21 +2538,94 @@
         </div>`).join("");
     }
 
+    function filteredStudents(searchId) {
+      const search = ($(searchId)?.value || "").trim().toLowerCase();
+      if (!search) return [...state.students];
+      return state.students.filter(student => [
+        student.id,
+        student.name,
+        student.email,
+        student.className,
+        student.cardUid,
+        student.status
+      ].some(value => String(value || "").toLowerCase().includes(search)));
+    }
+
+    function pagedItems(items, page, pageSize) {
+      const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+      const safePage = Math.min(Math.max(1, page), totalPages);
+      return {
+        page: safePage,
+        totalPages,
+        start: (safePage - 1) * pageSize,
+        rows: items.slice((safePage - 1) * pageSize, safePage * pageSize)
+      };
+    }
+
+    function renderPager(id, page, totalPages, total, prefix) {
+      const el = $(id);
+      if (!el) return;
+      if (!total) {
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = `
+        <span class="muted">${total} record${total === 1 ? "" : "s"} - page ${page} of ${totalPages}</span>
+        <div class="actions">
+          <button class="quiet ${prefix}-page" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>Previous</button>
+          <button class="quiet ${prefix}-page" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""}>Next</button>
+        </div>`;
+      document.querySelectorAll(`.${prefix}-page`).forEach(btn => btn.addEventListener("click", () => {
+        if (prefix === "roster") rosterPage = Number(btn.dataset.page);
+        else loginPage = Number(btn.dataset.page);
+        render();
+      }));
+    }
+
+    function studentEditFields(student, context) {
+      const id = escapeAttr(student.id);
+      return `
+        <div class="student-edit-grid">
+          <label>Name<input class="${context}-edit" data-id="${id}" data-field="name" value="${escapeAttr(student.name)}"></label>
+          <label>Email<input class="${context}-edit" data-id="${id}" data-field="email" value="${escapeAttr(student.email || "")}"></label>
+          <label>Class<input class="${context}-edit" data-id="${id}" data-field="className" value="${escapeAttr(student.className || "")}"></label>
+          <label>NFC card UID<input class="${context}-edit" data-id="${id}" data-field="cardUid" value="${escapeAttr(student.cardUid || "")}"></label>
+          <label>Monthly limit ₹<input class="${context}-edit" data-id="${id}" data-field="accountLimit" type="number" min="0" value="${Number(student.accountLimit || 5000)}"></label>
+          <label>Status<select class="${context}-edit" data-id="${id}" data-field="status"><option value="active" ${student.status !== "blocked" ? "selected" : ""}>Active</option><option value="blocked" ${student.status === "blocked" ? "selected" : ""}>Blocked</option></select></label>
+          <label>Password<input class="${context}-edit" data-id="${id}" data-field="password" type="password" autocomplete="new-password" value="${escapeAttr(student.password || "")}"></label>
+          <label>Save<button class="primary save-student" data-id="${id}" data-context="${context}" type="button">Save Details</button></label>
+        </div>`;
+    }
+
     function renderStudentLogins() {
       const activeCount = state.students.filter(student => student.status !== "blocked").length;
       $("loginCount").textContent = `${activeCount} active`;
-      $("loginList").innerHTML = state.students.slice(0, 18).map(student => {
+      $("toggleLoginListBtn").textContent = loginListVisible ? "Hide Logins" : "Show Logins";
+      if (!loginListVisible) {
+        $("loginList").innerHTML = `<div class="student-row"><div><strong>Student logins hidden</strong><span>Use search and Show Logins only when you need to inspect or edit login details.</span></div></div>`;
+        $("loginPager").innerHTML = "";
+        return;
+      }
+      const students = filteredStudents("loginSearch");
+      const pageSize = Number($("loginPageSize")?.value) || 10;
+      const page = pagedItems(students, loginPage, pageSize);
+      loginPage = page.page;
+      $("loginList").innerHTML = page.rows.map(student => {
         const monthly = monthlySpendFor(student.id);
         const daily = dailySpendFor(student.id);
-        const remaining = (student.accountLimit || 2500) - monthly;
         const dailyRemaining = DAILY_PURCHASE_LIMIT - daily;
         const tone = student.status === "blocked" ? "red" : dailyRemaining < 50 ? "yellow" : "green";
         return `
-          <div class="student-row">
-            <div><strong>${student.name}</strong><span>${student.id} - ${student.email} - ${student.className} - Card ${student.cardUid || "not mapped"} - password set - ${money(daily)} today / ${money(monthly)} month</span></div>
-            <span class="badge ${tone}">${student.status === "blocked" ? "Blocked" : `${money(dailyRemaining)} today`}</span>
+          <div class="student-row" style="display:block;">
+            <div class="status-head">
+              <div><strong>${escapeHtml(student.name)}</strong><span>${escapeHtml(student.id)} - ${escapeHtml(student.email)} - ${escapeHtml(student.className)} - Card ${escapeHtml(student.cardUid || "not mapped")} - ${money(daily)} today / ${money(monthly)} month</span></div>
+              <span class="badge ${tone}">${student.status === "blocked" ? "Blocked" : `${money(dailyRemaining)} today`}</span>
+            </div>
+            ${studentEditFields(student, "login")}
           </div>`;
-      }).join("") || `<div class="student-row"><div><strong>No student logins yet</strong><span>Create one manually or import the school student master.</span></div></div>`;
+      }).join("") || `<div class="student-row"><div><strong>No matching student logins</strong><span>Try a different search or import the school student master.</span></div></div>`;
+      renderPager("loginPager", page.page, page.totalPages, students.length, "login");
+      bindStudentEditButtons("login");
     }
 
     function renderPosPins() {
@@ -2539,14 +2644,14 @@
     }
 
     function renderMailOutbox() {
-      $("mailCount").textContent = `${state.mailOutbox.length} queued`;
+      $("mailCount").textContent = `${state.mailOutbox.length} logged`;
       $("mailTable").innerHTML = state.mailOutbox.slice(0, 12).map(mail => `
         <tr>
           <td>${mail.date} ${mail.time}</td>
           <td>${mail.to}</td>
           <td>${mail.subject}</td>
           <td>${badge(mail.status || "Queued")}</td>
-        </tr>`).join("") || `<tr><td colspan="4">No email events yet. Queue calls, bookings and billing will create outbox entries.</td></tr>`;
+        </tr>`).join("") || `<tr><td colspan="4">No manual bill emails yet. Use Email Bill from bill history when a student asks.</td></tr>`;
     }
 
     function receiptHtml(sale) {
@@ -2601,11 +2706,52 @@
 
     function renderRoster() {
       $("rosterCount").textContent = `${state.students.length} students`;
-      $("rosterList").innerHTML = state.students.slice(0, 20).map(student => `
-        <div class="student-row">
-          <div><strong>${student.name}</strong><span>${student.id} - ${student.email || "no email"} - Card ${student.cardUid || "not mapped"}</span></div>
-          <span class="badge blue">${initials(student.name)}</span>
-        </div>`).join("");
+      $("toggleRosterBtn").textContent = rosterVisible ? "Hide Students" : "Show Students";
+      if (!rosterVisible) {
+        $("rosterList").innerHTML = `<div class="student-row"><div><strong>Roster hidden</strong><span>Click Show Students to browse, search, page, and edit student records.</span></div></div>`;
+        $("rosterPager").innerHTML = "";
+        return;
+      }
+      const students = filteredStudents("rosterSearch");
+      const pageSize = Number($("rosterPageSize")?.value) || 25;
+      const page = pagedItems(students, rosterPage, pageSize);
+      rosterPage = page.page;
+      $("rosterList").innerHTML = page.rows.map(student => `
+        <div class="student-row" style="display:block;">
+          <div class="status-head">
+            <div><strong>${escapeHtml(student.name)}</strong><span>${escapeHtml(student.id)} - ${escapeHtml(student.email || "no email")} - ${escapeHtml(student.className || "Unassigned")} - Card ${escapeHtml(student.cardUid || "not mapped")} - Limit ${money(student.accountLimit || 5000)}</span></div>
+            <span class="badge ${student.status === "blocked" ? "red" : "blue"}">${student.status === "blocked" ? "Blocked" : initials(student.name)}</span>
+          </div>
+          ${studentEditFields(student, "roster")}
+        </div>`).join("") || `<div class="student-row"><div><strong>No matching students</strong><span>Try a different search.</span></div></div>`;
+      renderPager("rosterPager", page.page, page.totalPages, students.length, "roster");
+      bindStudentEditButtons("roster");
+    }
+
+    function bindStudentEditButtons(context) {
+      document.querySelectorAll(`.save-student[data-context="${context}"]`).forEach(btn => {
+        btn.addEventListener("click", () => saveStudentDetails(btn.dataset.id, context));
+      });
+    }
+
+    function saveStudentDetails(id, context) {
+      const student = findStudent(id);
+      if (!student) return toast("Student not found.");
+      document.querySelectorAll(`.${context}-edit`).forEach(input => {
+        if (input.dataset.id !== id) return;
+        const field = input.dataset.field;
+        const value = input.value.trim();
+        if (field === "accountLimit") student.accountLimit = Math.max(0, Number(value) || 0);
+        else if (field === "cardUid") student.cardUid = cleanCardUid(value);
+        else if (field === "status") student.status = value === "blocked" ? "blocked" : "active";
+        else if (field === "password") student.password = value || student.password;
+        else student[field] = value;
+      });
+      student.email = (student.email || `${student.id.toLowerCase()}@tisb.ac.in`).toLowerCase();
+      student.className = student.className || "Unassigned";
+      state.history.unshift(`Updated student ${student.name}`);
+      render();
+      toast(`${student.name} updated.`);
     }
 
     function requireStudent() {
@@ -2649,12 +2795,6 @@
       const number = state.nextNumber++;
       state.bookings.push({ id: student.id, name: student.name, slot: slot.window, ticket: number, created: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
       state.queue.push({ number, id: student.id, name: student.name, joined: slot.window, wait: "Booked slot", status: "BOOKED", slot: slot.window });
-      queueEmail(
-        student,
-        "TISB Tuck Shop: Slot booking confirmed",
-        `Hi ${student.name}, your tuck shop slot is confirmed for ${slot.window}. Your queue ticket is #${number}. Please show this number when your batch is called.`,
-        `booking-${slot.window}`
-      );
       state.history.unshift(`Booked After School ${slot.window}`);
       render();
       toast(`Booked ${slot.window}. Ticket #${number} is ready.`);
@@ -2686,18 +2826,10 @@
       const waiting = state.queue.filter(q => ["BOOKED", "WAITING"].includes(q.status)).slice(0, state.batch);
       waiting.forEach(q => {
         q.status = "CALLED";
-        const student = findStudent(q.id);
-        queueEmail(
-          student,
-          "TISB Tuck Shop: Your queue number has been called",
-          `Hi ${q.name}, queue #${q.number} has been called. Please come to the tuck shop within the arrival window.`,
-          `called-${q.number}`
-        );
       });
-      maybeSendAlmostWarnings();
       state.history.unshift(`Operator called next ${waiting.length || 0}`);
       render();
-      toast(waiting.length ? "Called students notified in-app and by email." : "No waiting students to call.");
+      toast(waiting.length ? "Called students in the live queue." : "No waiting students to call.");
     }
 
     function serveNext() {
@@ -2806,13 +2938,13 @@
           email: hasHeader ? String(rowValue(row, headers, ["Email", "Microsoft Email", "School Email"], 2) || "").trim().toLowerCase() : String(row[2] || "").trim().toLowerCase(),
           className: hasHeader ? String(rowValue(row, headers, ["Class", "Grade", "Class / House", "Section"], 3) || "").trim() : String(row[3] || "").trim(),
           cardUid: cleanCardUid(hasHeader ? rowValue(row, headers, ["Card UID", "NFC UID", "NFC Card", "RFID", "Card Number"], 4) : row[4]),
-          accountLimit: Number(hasHeader ? rowValue(row, headers, ["Limit", "Monthly Limit", "Account Limit"], 5) : row[5]) || 2500,
+          accountLimit: Number(hasHeader ? rowValue(row, headers, ["Limit", "Monthly Limit", "Account Limit"], 5) : row[5]) || 5000,
           status: String(hasHeader ? rowValue(row, headers, ["Status"], 6) : row[6] || "active").trim().toLowerCase() || "active"
         };
       }).filter(student => student.id && student.name);
     }
 
-    function applyStudentMaster(students) {
+    function applyStudentMaster(students, modeOverride = "", options = {}) {
       const seen = new Set();
       let added = 0;
       let updated = 0;
@@ -2830,7 +2962,7 @@
         if (result.ok && result.updated) updated++;
         else if (result.ok) added++;
       });
-      const mode = $("studentImportMode").value;
+      const mode = modeOverride || $("studentImportMode").value;
       if (mode === "sync" || mode === "delete") {
         const kept = [];
         state.students.forEach(student => {
@@ -2849,7 +2981,7 @@
       state.history.unshift(`Student master import: ${added} added, ${updated} updated, ${blocked} blocked, ${removed} removed`);
       render();
       $("studentMasterStatus").textContent = `${added} added, ${updated} updated, ${blocked} blocked, ${removed} removed. Microsoft email and NFC card UID mapping is active.`;
-      toast(`Student master imported: ${added} added, ${updated} updated.`);
+      if (!options.silent) toast(`Student master imported: ${added} added, ${updated} updated.`);
     }
 
     function importStudents() {
@@ -2884,28 +3016,50 @@
       }
     }
 
-    async function fetchStudentMasterUrl() {
+    async function rowsFromStudentMasterUrl(url) {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Could not fetch file (${response.status})`);
+      if (/\.xlsx?(\?|$)/i.test(url)) {
+        if (!window.XLSX) throw new Error("Excel parser is loading. Try again in a moment.");
+        const workbook = XLSX.read(await response.arrayBuffer());
+        return XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, raw: false, defval: "" });
+      }
+      return parseDelimited(await response.text());
+    }
+
+    async function syncStudentMasterUrl({ silent = false } = {}) {
       const url = $("studentMasterUrl").value.trim();
       if (!url) return toast("Paste a published CSV or direct Excel link first.");
       try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) throw new Error(`Could not fetch file (${response.status})`);
-        let rows = [];
-        if (/\.xlsx?(\?|$)/i.test(url)) {
-          if (!window.XLSX) return toast("Excel parser is loading. Try again in a moment.");
-          const workbook = XLSX.read(await response.arrayBuffer());
-          rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, raw: false, defval: "" });
-        } else {
-          rows = parseDelimited(await response.text());
-        }
+        const rows = await rowsFromStudentMasterUrl(url);
         const students = rowsToStudents(rows);
         if (!students.length) return toast("No valid students found at that link.");
+        state.studentMasterUrl = url;
+        state.studentMasterAutoSync = $("studentMasterAutoSync").value === "on";
+        state.studentMasterSyncMode = $("studentImportMode").value;
+        state.studentMasterLastSync = new Date().toISOString();
         $("importText").value = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
-        applyStudentMaster(students);
+        applyStudentMaster(students, state.studentMasterSyncMode, { silent });
+        $("studentMasterStatus").textContent += ` Last synced ${new Date(state.studentMasterLastSync).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.`;
+        if (!silent) toast("Student master synced from URL.");
       } catch (error) {
         $("studentMasterStatus").textContent = `Fetch failed: ${error.message}. For private Excel files, upload the file or publish/export as CSV.`;
-        toast("Student master URL could not be fetched.");
+        if (!silent) toast("Student master URL could not be fetched.");
       }
+    }
+
+    async function fetchStudentMasterUrl() {
+      return syncStudentMasterUrl({ silent: false });
+    }
+
+    async function maybeAutoSyncStudentMaster() {
+      if (!state.studentMasterAutoSync || !state.studentMasterUrl || !SERVER_MODE) return;
+      const last = state.studentMasterLastSync ? Date.parse(state.studentMasterLastSync) : 0;
+      if (last && Date.now() - last < 60 * 60 * 1000) return;
+      if ($("studentMasterUrl")) $("studentMasterUrl").value = state.studentMasterUrl;
+      if ($("studentMasterAutoSync")) $("studentMasterAutoSync").value = "on";
+      if ($("studentImportMode")) $("studentImportMode").value = state.studentMasterSyncMode || "upsert";
+      await syncStudentMasterUrl({ silent: true });
     }
 
     function downloadStudentMasterTemplate() {
@@ -2945,7 +3099,7 @@
       $("loginCreateEmail").value = "";
       $("loginCreateCardUid").value = "";
       $("loginCreatePassword").value = "";
-      $("loginCreateLimit").value = "2500";
+      $("loginCreateLimit").value = "5000";
       $("loginCreateStatus").value = "active";
       state.history.unshift(`${result.updated ? "Updated" : "Created"} login for ${result.student.name}`);
       render();
@@ -2956,11 +3110,11 @@
       const number = 2050 + state.students.length;
       $("loginCreateId").value = `TISB${number}`;
       $("loginCreateName").value = "New Student";
-      $("loginCreateClass").value = "Grade 8 - House";
+      $("loginCreateClass").value = "Grade 8 A";
       $("loginCreateEmail").value = `tisb${number}@tisb.ac.in`;
       $("loginCreateCardUid").value = `CARD${number}`;
       $("loginCreatePassword").value = `student${String(number).slice(-4)}`;
-      $("loginCreateLimit").value = "2500";
+      $("loginCreateLimit").value = "5000";
       $("loginCreateStatus").value = "active";
     }
 
@@ -3069,6 +3223,24 @@
       toast(`Downloaded ${sale.billNo}.`);
     }
 
+    function emailBill(billNo) {
+      const sale = findSaleByBill(billNo);
+      if (!sale) return toast("Bill not found.");
+      const student = findStudent(sale.studentId) || {
+        id: sale.studentId,
+        name: sale.studentName,
+        email: sale.email || ""
+      };
+      if (!student.email) return toast("This student has no email saved. Add email in Admin first.");
+      queueEmail(
+        student,
+        `TuckQ Bill ${sale.billNo}`,
+        billEmailBody(student, sale, `Your TuckQ ${sale.channel === "Pre-order" ? "pre-order" : "POS"} bill is ready.`),
+        `manual-bill-${sale.billNo}`
+      );
+      toast(`Email requested for ${sale.billNo}.`);
+    }
+
     function confirmPreorder() {
       const student = requireStudent();
       if (!student) return;
@@ -3090,7 +3262,7 @@
       const total = state.preorderCart.reduce((sum, line) => sum + line.price * line.qty, 0);
       const dailyRemaining = DAILY_PURCHASE_LIMIT - dailySpendFor(student.id);
       if (total > dailyRemaining) return toast(`Daily tuck shop limit exceeded. Remaining today: ${money(dailyRemaining)}.`);
-      const remaining = (student.accountLimit || 2500) - monthlySpendFor(student.id);
+      const remaining = (student.accountLimit || 5000) - monthlySpendFor(student.id);
       if (total > remaining) return toast(`Monthly account limit exceeded. Remaining: ${money(remaining)}.`);
 
       const booking = state.bookings.find(entry => entry.id === student.id);
@@ -3121,18 +3293,12 @@
         total,
         created: sale.time
       });
-      queueEmail(
-        student,
-        `TuckQ Bill ${sale.billNo}: Pre-order confirmed`,
-        billEmailBody(student, sale, "Your TuckQ pre-order bill is ready."),
-        `preorder-bill-${sale.billNo}`
-      );
       state.lastReceipt = sale;
       state.preorderCart = [];
       state.history.unshift(`Pre-order billed ${student.name}: ${money(total)}`);
       render();
       viewBill(sale.billNo);
-      toast(`Pre-order confirmed. Bill ${sale.billNo} was emailed/logged.`);
+      toast(`Pre-order confirmed. Bill ${sale.billNo} is ready to view or email.`);
     }
 
     function markPreorderPickedUp(billNo) {
@@ -3196,7 +3362,7 @@
       const cartTotal = state.cart.reduce((sum, line) => sum + line.price * line.qty, 0);
       const dailyRemaining = DAILY_PURCHASE_LIMIT - dailySpendFor(result.student.id);
       if (cartTotal > dailyRemaining) return toast(`Daily tuck shop limit exceeded. Remaining today: ${money(dailyRemaining)}.`);
-      const remaining = (result.student.accountLimit || 2500) - monthlySpendFor(result.student.id);
+      const remaining = (result.student.accountLimit || 5000) - monthlySpendFor(result.student.id);
       if (cartTotal > remaining) return toast(`Monthly account limit exceeded. Remaining: ${money(remaining)}.`);
 
       const sale = {
@@ -3215,12 +3381,6 @@
         if (item) item.stock -= line.qty;
       });
       state.sales.push(sale);
-      queueEmail(
-        result.student,
-        `TuckQ Bill ${sale.billNo}: POS purchase`,
-        billEmailBody(result.student, sale, "Your TuckQ POS bill is ready."),
-        `bill-${sale.billNo}`
-      );
       state.lastReceipt = sale;
       state.cart = [];
       state.history.unshift(`Billed ${result.student.name}: ${money(saleTotal(sale))}`);
@@ -3356,7 +3516,7 @@
           const today = dailySpendFor(student.id);
           const week = sales.filter(sale => inThisWeek(sale.iso)).reduce((sum, sale) => sum + saleTotal(sale), 0);
           const month = filters ? sales.reduce((sum, sale) => sum + saleTotal(sale), 0) : monthlySpendFor(student.id);
-          const limit = student.accountLimit || 2500;
+          const limit = student.accountLimit || 5000;
           return [student.id, student.name, student.email || "", student.className || "", student.cardUid || "", student.status || "active", today, DAILY_PURCHASE_LIMIT, DAILY_PURCHASE_LIMIT - today, week, month, limit, limit - month];
         })
       ];
@@ -3597,6 +3757,7 @@
     $("confirmPreorderBtn").addEventListener("click", confirmPreorder);
     $("closeBillBtn").addEventListener("click", closeBill);
     $("downloadOpenBillBtn").addEventListener("click", () => state.openBillNo && downloadBill(state.openBillNo));
+    $("emailOpenBillBtn").addEventListener("click", () => state.openBillNo && emailBill(state.openBillNo));
     $("printOpenBillBtn").addEventListener("click", () => window.print());
     $("billModal").addEventListener("click", event => {
       if (event.target.id === "billModal") closeBill();
@@ -3613,6 +3774,45 @@
     $("importBtn").addEventListener("click", importStudents);
     $("fetchMasterBtn").addEventListener("click", fetchStudentMasterUrl);
     $("studentMasterFile").addEventListener("change", importStudentMasterFile);
+    $("studentMasterUrl").addEventListener("change", () => {
+      state.studentMasterUrl = $("studentMasterUrl").value.trim();
+      save();
+    });
+    $("studentMasterAutoSync").addEventListener("change", () => {
+      state.studentMasterAutoSync = $("studentMasterAutoSync").value === "on";
+      save();
+      toast(state.studentMasterAutoSync ? "Auto-sync enabled. TuckQ will refresh the student master from this URL." : "Auto-sync disabled.");
+    });
+    $("studentImportMode").addEventListener("change", () => {
+      state.studentMasterSyncMode = $("studentImportMode").value;
+      save();
+    });
+    $("toggleRosterBtn").addEventListener("click", () => {
+      rosterVisible = !rosterVisible;
+      rosterPage = 1;
+      render();
+    });
+    $("rosterSearch").addEventListener("input", () => {
+      rosterPage = 1;
+      renderRoster();
+    });
+    $("rosterPageSize").addEventListener("change", () => {
+      rosterPage = 1;
+      renderRoster();
+    });
+    $("toggleLoginListBtn").addEventListener("click", () => {
+      loginListVisible = !loginListVisible;
+      loginPage = 1;
+      render();
+    });
+    $("loginSearch").addEventListener("input", () => {
+      loginPage = 1;
+      renderStudentLogins();
+    });
+    $("loginPageSize").addEventListener("change", () => {
+      loginPage = 1;
+      renderStudentLogins();
+    });
     $("clearImportBtn").addEventListener("click", () => $("importText").value = "");
     $("templateImportBtn").addEventListener("click", downloadStudentMasterTemplate);
     $("manualAddBtn").addEventListener("click", manualAddStudent);
@@ -3648,6 +3848,7 @@
     async function startApp() {
       await safe(async () => {
         await loadServerState();
+        await maybeAutoSyncStudentMaster();
         const params = new URLSearchParams(location.search);
         const preferredRole = params.get("role");
         if (preferredRole && ["student", "operator", "teacher", "admin"].includes(preferredRole)) openPortal(preferredRole);
@@ -3663,6 +3864,7 @@
           applyScheduledOpenState();
           if (state.open !== wasOpen || state.openOverrideDate !== previousOverrideDate) render();
         }, 30000);
+        setInterval(() => maybeAutoSyncStudentMaster(), 15 * 60 * 1000);
         if (params.get("sso") === "success" && ssoUser) toast(`Signed in with Microsoft as ${ssoUser.name}.`);
         else if (params.get("sso") === "not-configured") toast("Microsoft SSO needs Azure settings before it can be used.");
         else if (params.get("sso")) toast("Microsoft sign-in could not be completed.");

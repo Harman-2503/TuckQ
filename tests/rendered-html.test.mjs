@@ -22,6 +22,10 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(oldUi, /salesReportRows/);
   assert.match(oldUi, /Microsoft email and NFC card UID mapping is active/);
   assert.match(oldUi, /Student master file/);
+  assert.match(oldUi, /Auto-sync from URL/);
+  assert.match(oldUi, /Show Students/);
+  assert.match(oldUi, /Email Bill/);
+  assert.match(oldUi, /Manual Bill Emails/);
   assert.match(oldUi, /Student ID \/ NFC card UID/);
   assert.match(oldUi, /Per-student limit\/day/);
   const removedDemoAccess = ["student", "1042", "|staff", "123", "|teacher", "123", "|Default local code: ", "4321"].join("");
@@ -29,6 +33,13 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(oldUi, /itemLimitMessage/);
   assert.match(oldUi, /customReportRows/);
   assert.match(oldUi, /TISB-Logo-DarkBG/);
+  const removedAutoMailCopy = [
+    ["maybe", "Send", "Almost", "Warnings"].join(""),
+    ["Confirm Pre-order", " & ", "Email Bill"].join(""),
+    ["Automatic", " Emails"].join(""),
+    ["Warning", " threshold"].join("")
+  ].join("|");
+  assert.doesNotMatch(oldUi, new RegExp(removedAutoMailCopy));
   assert.match(layout, /TuckQ \| TISB Tuck Shop/);
   assert.match(styles, /\.tuckq-frame/);
   assert.doesNotMatch(page + layout + oldUi, /SkeletonPreview|codex-preview|Queless/);

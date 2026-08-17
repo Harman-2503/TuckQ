@@ -17,11 +17,12 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 - Daily purchase limit of Rs 280 per student
 - Student account view with daily, weekly, monthly, and item-level bills
 - Operator controls for opening and closing the tuck shop
-- Admin student login creation/import flow
+- Admin student login creation/import flow with reusable Excel/CSV URL sync
+- Paged admin roster and login views with inline student editing
 - Admin-created POS PIN access for tuck shop counter staff
 - Day-wise menu management, including everyday chips items
 - Downloadable reports for sales, students, and billing
-- Email receipt/warning flow through the hosted `/api/mail` endpoint
+- Optional bill email flow through the hosted `/api/mail` endpoint, triggered only when a user clicks Email Bill
 - Cloudflare D1-backed state persistence on the hosted Site
 - Structured database tables for students, sales, sale items, queue, bookings,
   preorders, menu items, mail events, and settings
@@ -45,7 +46,7 @@ variables are configured in Sites:
 - `RESEND_API_KEY`
 - `MAIL_FROM`
 
-The app records all mail attempts in the `mail_outbox` D1 table. If mail is not
+The app records manual bill email attempts in the `mail_outbox` D1 table. If mail is not
 configured, messages are saved as drafts instead of being sent.
 
 For a real school sender address, verify the school's sending domain in Resend

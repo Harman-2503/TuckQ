@@ -27,7 +27,7 @@ export async function ensureTuckQDatabase() {
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_state_updated_at ON tuckq_state (updated_at)"),
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_students (id TEXT PRIMARY KEY, name TEXT NOT NULL, class_name TEXT, email TEXT, card_uid TEXT, password TEXT, account_limit INTEGER NOT NULL DEFAULT 2500, status TEXT NOT NULL DEFAULT 'active', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_students (id TEXT PRIMARY KEY, name TEXT NOT NULL, class_name TEXT, email TEXT, card_uid TEXT, password TEXT, account_limit INTEGER NOT NULL DEFAULT 5000, status TEXT NOT NULL DEFAULT 'active', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_students_status ON tuckq_students (status)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tuckq_catalogue (id TEXT PRIMARY KEY, day TEXT NOT NULL, name TEXT NOT NULL, category TEXT, price INTEGER NOT NULL, stock INTEGER NOT NULL DEFAULT 0, purchase_limit INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_tuckq_catalogue_day ON tuckq_catalogue (day)"),
@@ -81,7 +81,7 @@ export async function saveStructuredState(state: unknown) {
 
   for (const student of students) {
     statements.push(env.DB.prepare("INSERT INTO tuckq_students (id, name, class_name, email, card_uid, password, account_limit, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(text(student.id), text(student.name), text(student.className), text(student.email), text(student.cardUid), text(student.password), number(student.accountLimit, 2500), text(student.status || "active")));
+      .bind(text(student.id), text(student.name), text(student.className), text(student.email), text(student.cardUid), text(student.password), number(student.accountLimit, 5000), text(student.status || "active")));
   }
 
   for (const item of catalogue) {
@@ -131,6 +131,10 @@ export async function saveStructuredState(state: unknown) {
     nextNumber: number(source.nextNumber, 36),
     selectedPosDay: text(source.selectedPosDay),
     preorderDay: text(source.preorderDay),
+    studentMasterUrl: text(source.studentMasterUrl),
+    studentMasterAutoSync: Boolean(source.studentMasterAutoSync),
+    studentMasterLastSync: text(source.studentMasterLastSync),
+    studentMasterSyncMode: text(source.studentMasterSyncMode),
   };
 
   for (const [key, value] of Object.entries(settings)) {
