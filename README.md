@@ -10,13 +10,13 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 
 - Student login with ID and password
 - Same-day slot booking between 3:45 PM and 4:45 PM
-- Automatic tuck shop opening at 3:45 PM on weekdays and 4:30 PM on weekends
+- Admin-configurable day-wise opening and closing times, followed automatically by the live queue
 - Slot cancellation and queue ticket generation
 - Student pre-ordering with online bill viewing and download
 - POS billing by student ID, with automatic student name lookup
 - Daily purchase limit of Rs 280 per student
 - Student account view with daily, weekly, monthly, and item-level bills
-- Operator controls for opening and closing the tuck shop
+- Operator controls for manual opening/closing, with the admin timetable resuming automatically
 - Admin student login creation/import flow with reusable Excel/CSV URL sync
 - Paged admin roster and login views with inline student editing
 - Admin-created POS PIN access for tuck shop counter staff

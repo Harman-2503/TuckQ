@@ -718,11 +718,33 @@
 
     .filter-row {
       display: grid;
-      grid-template-columns: minmax(180px, 1fr) 180px 160px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: 10px;
       margin-top: 16px;
       align-items: end;
     }
+
+    .filter-row label { min-width: 0; }
+    .filter-row button, .filter-row select, .filter-row input { width: 100%; }
+
+    .schedule-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .schedule-row {
+      display: grid;
+      grid-template-columns: 150px 110px minmax(120px, 1fr) minmax(120px, 1fr);
+      gap: 10px;
+      align-items: end;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcff;
+    }
+
+    .schedule-row strong { color: var(--ink); }
 
     .item-btn {
       min-height: 92px;
@@ -923,6 +945,7 @@
       .landing { padding: 18px; align-items: start; }
       .landing-copy { padding: 36px 0 12px; }
       .landing-stats, .portal-grid, .grid, .metric-row, .form-grid, .big-controls, .pos-grid, .item-grid, .account-summary, .filter-row, .report-grid, .report-filter-grid, .report-preview { grid-template-columns: 1fr; }
+      .schedule-row { grid-template-columns: 1fr; }
       .student-welcome { grid-template-columns: 1fr; }
       .welcome-stat { min-width: 0; }
       .welcome-stats, .student-dashboard { grid-template-columns: 1fr; }
@@ -1400,7 +1423,7 @@
               <div class="form-grid" style="margin-top:16px;">
                 <label>School name<input id="schoolName" value="The International School Bangalore"></label>
                 <label>Allowed email domain<input id="emailDomain" value="@tisb.ac.in"></label>
-                <label>Auto opening schedule<input id="openTime" value="Weekdays 3:45 PM / Weekends 4:30 PM" readonly></label>
+                <label>Today's schedule<input id="openTime" readonly></label>
                 <label>Slot increment<select id="slotIncrement"><option value="10">10 minutes</option><option value="5">5 minutes</option></select></label>
                 <label>Capacity per 10 min slot<input id="slotCapacity" type="number" min="1" max="80" value="18"></label>
                 <label>Arrival window<select id="arrivalWindow"><option>3 minutes</option><option>2 minutes</option><option>5 minutes</option></select></label>
@@ -1414,11 +1437,21 @@
             <div class="panel">
               <h3>Pre-opening Booking Rules</h3>
               <div class="slot-list" style="margin-top:16px;">
-                <div class="slot"><div><strong>Auto open</strong><span>Weekdays 3:45 PM, weekends 4:30 PM</span></div><span class="badge green">Enabled</span></div>
+                <div class="slot"><div><strong>Auto open and close</strong><span id="scheduleRuleText">Uses admin day-wise timings</span></div><span class="badge green">Enabled</span></div>
                 <div class="slot"><div><strong>Slot length</strong><span>5 or 10 minute increments</span></div><span class="badge green">Configurable</span></div>
                 <div class="slot"><div><strong>Early booking</strong><span>Students can book before the tuck shop opens</span></div><span class="badge green">Enabled</span></div>
               </div>
             </div>
+          </div>
+          <div class="panel">
+            <div class="status-head">
+              <div>
+                <p class="section-label">School Timetable</p>
+                <h3>Day-wise Opening Hours</h3>
+              </div>
+              <span class="badge blue" id="scheduleStatusBadge">Auto schedule</span>
+            </div>
+            <div class="schedule-grid" id="scheduleEditor"></div>
           </div>
           <div class="grid">
             <div class="panel">
@@ -1552,11 +1585,27 @@
             </div>
             <div class="panel">
               <div class="status-head">
-                <h3>POS Catalogue</h3>
+                <h3>Inventory Summary</h3>
                 <span class="badge blue" id="catalogueCount">0 items</span>
               </div>
               <div class="roster-list" id="catalogueList" style="margin-top:16px;"></div>
             </div>
+          </div>
+          <div class="panel">
+            <div class="status-head">
+              <div>
+                <p class="section-label">Inventory</p>
+                <h3>Inventory Management</h3>
+              </div>
+              <span class="badge blue" id="inventoryCount">0 items</span>
+            </div>
+            <div class="filter-row">
+              <label>Search inventory<input id="inventorySearch" placeholder="Item or category"></label>
+              <label>Day<select id="inventoryDayFilter"><option value="all">All days</option></select></label>
+              <label>Visibility<button class="quiet" id="toggleInventoryBtn" type="button">Show Inventory</button></label>
+            </div>
+            <div class="roster-list" id="inventoryList" style="margin-top:16px;"></div>
+            <div class="pager" id="inventoryPager"></div>
           </div>
         </section>
       </section>
@@ -1587,10 +1636,17 @@
     const PRODUCTION_CLEANUP_VERSION = "2026-08-17-no-demo-logins";
     const DEFAULT_STUDENTS = [];
     const LEGACY_DEMO_STUDENT_IDS = Array.from({ length: 6 }, (_, index) => `TISB${1042 + index}`);
-    const WEEKDAY_OPEN_MINUTES = 15 * 60 + 45;
-    const WEEKEND_OPEN_MINUTES = 16 * 60 + 30;
 
     const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const DEFAULT_DAY_SCHEDULE = {
+      Monday: { enabled: true, open: "15:45", close: "16:45" },
+      Tuesday: { enabled: true, open: "15:45", close: "16:45" },
+      Wednesday: { enabled: true, open: "15:45", close: "16:45" },
+      Thursday: { enabled: true, open: "15:45", close: "16:45" },
+      Friday: { enabled: true, open: "15:45", close: "16:45" },
+      Saturday: { enabled: true, open: "16:30", close: "17:30" },
+      Sunday: { enabled: true, open: "16:30", close: "17:30" }
+    };
     const DEFAULT_CATALOGUE = [
       { id: "chips-classic", day: "Everyday", name: "Chips", category: "Daily chips", price: 30, stock: 80 },
       { id: "chips-masala", day: "Everyday", name: "Masala Chips", category: "Daily chips", price: 35, stock: 60 },
@@ -1631,6 +1687,7 @@
       batch: 5,
       slotIncrement: 10,
       slotCapacity: 18,
+      daySchedule: DEFAULT_DAY_SCHEDULE,
       nextNumber: 36,
       served: 214,
       myTicket: null,
@@ -1661,6 +1718,8 @@
     let rosterPage = 1;
     let loginListVisible = false;
     let loginPage = 1;
+    let inventoryVisible = false;
+    let inventoryPage = 1;
     const $ = (id) => document.getElementById(id);
     const safe = (fn, label = "Action") => {
       try {
@@ -1740,6 +1799,7 @@
       merged.studentMasterAutoSync = !!source.studentMasterAutoSync;
       merged.studentMasterLastSync = source.studentMasterLastSync || "";
       merged.studentMasterSyncMode = source.studentMasterSyncMode || "upsert";
+      merged.daySchedule = normalizeDaySchedule(source.daySchedule);
       if (needsProductionCleanup) {
         merged.students = merged.students.filter(student => !demoIds.has(String(student.id || "").toUpperCase()));
         ["queue", "bookings", "sales", "preorders", "mailOutbox"].forEach(key => {
@@ -1780,6 +1840,19 @@
         }
       });
       return merged;
+    }
+
+    function normalizeDaySchedule(source = {}) {
+      return DAYS.reduce((schedule, day) => {
+        const fallback = DEFAULT_DAY_SCHEDULE[day];
+        const saved = source?.[day] || {};
+        schedule[day] = {
+          enabled: typeof saved.enabled === "boolean" ? saved.enabled : fallback.enabled,
+          open: validTimeInput(saved.open) ? saved.open : fallback.open,
+          close: validTimeInput(saved.close) ? saved.close : fallback.close
+        };
+        return schedule;
+      }, {});
     }
 
     function save() {
@@ -1892,6 +1965,16 @@
       return `${hours12}:${String(minutes).padStart(2, "0")} ${suffix}`;
     }
 
+    function validTimeInput(value) {
+      return /^\d{2}:\d{2}$/.test(String(value || ""));
+    }
+
+    function timeInputToMinutes(value, fallback = "15:45") {
+      const source = validTimeInput(value) ? value : fallback;
+      const [hours, minutes] = source.split(":").map(Number);
+      return (hours * 60) + minutes;
+    }
+
     function minutesSinceMidnight(date = new Date()) {
       return date.getHours() * 60 + date.getMinutes();
     }
@@ -1905,14 +1988,24 @@
     }
 
     function openingSchedule(date = new Date()) {
-      const isWeekend = [0, 6].includes(date.getDay());
-      const openMinutes = isWeekend ? WEEKEND_OPEN_MINUTES : WEEKDAY_OPEN_MINUTES;
+      const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+      const dayConfig = state.daySchedule?.[dayName] || DEFAULT_DAY_SCHEDULE[dayName] || DEFAULT_DAY_SCHEDULE.Monday;
+      const openMinutes = timeInputToMinutes(dayConfig.open, DEFAULT_DAY_SCHEDULE[dayName]?.open || "15:45");
+      const closeMinutes = timeInputToMinutes(dayConfig.close, DEFAULT_DAY_SCHEDULE[dayName]?.close || "16:45");
+      const now = minutesSinceMidnight(date);
+      const insideWindow = closeMinutes > openMinutes
+        ? now >= openMinutes && now < closeMinutes
+        : now >= openMinutes || now < closeMinutes;
       return {
         dateKey: localDateKey(date),
-        dayType: isWeekend ? "Weekend" : "Weekday",
+        dayName,
+        dayType: [0, 6].includes(date.getDay()) ? "Weekend" : "Weekday",
+        enabled: dayConfig.enabled !== false,
         openMinutes,
+        closeMinutes,
         openLabel: formatMinutes(openMinutes),
-        autoOpen: minutesSinceMidnight(date) >= openMinutes
+        closeLabel: formatMinutes(closeMinutes),
+        autoOpen: dayConfig.enabled !== false && insideWindow
       };
     }
 
@@ -1939,8 +2032,9 @@
     }
 
     function buildSlots() {
-      const start = 15 * 60 + 45;
-      const end = 16 * 60 + 45;
+      const schedule = openingSchedule();
+      const start = schedule.openMinutes;
+      const end = schedule.closeMinutes > schedule.openMinutes ? schedule.closeMinutes : schedule.openMinutes + 60;
       const increment = Number(state.slotIncrement) || 10;
       const baseCapacity = Number(state.slotCapacity) || 18;
       const capacity = increment === 5 ? Math.ceil(baseCapacity / 2) : baseCapacity;
@@ -2278,15 +2372,17 @@
       const called = state.queue.filter(q => q.status === "CALLED");
       const student = activeStudent();
       const openText = state.open
-        ? (state.paused ? "Paused for counter reset" : `Tuck Shop Open since ${schedule.openLabel}`)
-        : `Opening soon: ${schedule.openLabel}`;
+        ? (state.paused ? "Paused for counter reset" : `Tuck Shop Open until ${schedule.closeLabel}`)
+        : (schedule.enabled ? `Opening soon: ${schedule.openLabel}` : "Closed today");
 
       $("openLabel").textContent = openText;
       $("stateDot").style.background = state.open && !state.paused ? "var(--green)" : "var(--yellow)";
       $("shopStatus").textContent = state.open ? "Tuck Shop Open" : "Tuck Shop Closed";
       $("shopCopy").textContent = state.open
-        ? `${schedule.dayType} service is live. Join the queue now or reserve a later slot.`
-        : `Bookings are open before service starts. ${schedule.dayType} opening is ${schedule.openLabel}.`;
+        ? `${schedule.dayName} service is live until ${schedule.closeLabel}. Join the queue now or reserve a later slot.`
+        : schedule.enabled
+          ? `Bookings are open before service starts. ${schedule.dayName} timing is ${schedule.openLabel}-${schedule.closeLabel}.`
+          : `${schedule.dayName} is marked closed in the admin timetable.`;
       $("studentBadge").textContent = state.open ? "Live queue active" : "Pre-open booking";
       $("waitMetric").textContent = waiting.length ? `~${Math.max(3, waiting.length * 2)}m` : "~3m";
       $("waitingMetric").textContent = waiting.length;
@@ -2303,11 +2399,13 @@
       $("userLine").textContent = state.user ? `${state.user.name} (${state.user.id}) - ${state.user.role}` : "NAFL Valley, Whitefield-Sarjapur Road, Bengaluru";
       $("slotIncrement").value = String(state.slotIncrement);
       $("slotCapacity").value = String(state.slotCapacity);
+      $("openTime").value = schedule.enabled ? `${schedule.dayName} ${schedule.openLabel}-${schedule.closeLabel}` : `${schedule.dayName} closed`;
+      setText("scheduleRuleText", schedule.enabled ? `${schedule.dayName}: ${schedule.openLabel}-${schedule.closeLabel}` : `${schedule.dayName}: closed`);
       if ($("studentMasterUrl") && document.activeElement !== $("studentMasterUrl")) $("studentMasterUrl").value = state.studentMasterUrl || "";
       if ($("studentMasterAutoSync")) $("studentMasterAutoSync").value = state.studentMasterAutoSync ? "on" : "off";
       if ($("studentImportMode") && state.studentMasterSyncMode) $("studentImportMode").value = state.studentMasterSyncMode;
       $("joinBtn").disabled = !state.open || state.paused;
-      $("slotStatusBadge").textContent = `${schedule.dayType} opens ${schedule.openLabel}`;
+      $("slotStatusBadge").textContent = schedule.enabled ? `${schedule.openLabel}-${schedule.closeLabel} slots` : "Closed today";
       const welcomeStudent = student || state.students[0];
       const dailyLeft = welcomeStudent ? Math.max(0, DAILY_PURCHASE_LIMIT - dailySpendFor(welcomeStudent.id)) : DAILY_PURCHASE_LIMIT;
       const monthlyLeft = welcomeStudent ? Math.max(0, (welcomeStudent.accountLimit || 5000) - monthlySpendFor(welcomeStudent.id)) : 0;
@@ -2330,6 +2428,7 @@
       renderPos();
       renderPreorderPickups();
       renderAccount();
+      renderScheduleEditor(schedule);
       renderCatalogueAdmin();
       renderStudentLogins();
       renderPosPins();
@@ -2387,6 +2486,10 @@
       const options = DAYS.map(day => `<option value="${day}">${day}</option>`).join("");
       if (!$("posDay").innerHTML) $("posDay").innerHTML = options;
       if (!$("newItemDay").innerHTML) $("newItemDay").innerHTML = `<option value="Everyday">All days</option>${options}`;
+      if ($("inventoryDayFilter") && !$("inventoryDayFilter").dataset.ready) {
+        $("inventoryDayFilter").innerHTML = `<option value="all">All days</option><option value="Everyday">Everyday items</option>${options}`;
+        $("inventoryDayFilter").dataset.ready = "true";
+      }
       $("posDay").value = state.selectedPosDay;
     }
 
@@ -2531,11 +2634,71 @@
     function renderCatalogueAdmin() {
       fillDaySelects();
       $("catalogueCount").textContent = `${state.catalogue.length} items`;
-      $("catalogueList").innerHTML = state.catalogue.slice(0, 18).map(item => `
+      const lowStock = state.catalogue.filter(item => Number(item.stock) <= 10).length;
+      $("catalogueList").innerHTML = `
         <div class="student-row">
-          <div><strong>${item.name}</strong><span>${item.day === "Everyday" ? "All days" : item.day} - ${item.category} - Stock ${item.stock}${itemPurchaseLimit(item) ? ` - Limit ${itemPurchaseLimit(item)}/student/day` : ""}</span></div>
-          <span class="badge green">${money(item.price)}</span>
-        </div>`).join("");
+          <div><strong>Catalogue kept separate</strong><span>Add new items here. Use Inventory Management below to search, page, and edit existing items.</span></div>
+          <span class="badge ${lowStock ? "yellow" : "green"}">${lowStock} low stock</span>
+        </div>`;
+      renderInventory();
+    }
+
+    function renderScheduleEditor(schedule = openingSchedule()) {
+      $("scheduleStatusBadge").textContent = schedule.enabled
+        ? `${schedule.dayName} ${schedule.openLabel}-${schedule.closeLabel}`
+        : `${schedule.dayName} closed`;
+      $("scheduleEditor").innerHTML = DAYS.map(day => {
+        const config = state.daySchedule[day] || DEFAULT_DAY_SCHEDULE[day];
+        return `
+          <div class="schedule-row">
+            <strong>${day}</strong>
+            <label>Status<select class="schedule-field" data-day="${day}" data-field="enabled"><option value="true" ${config.enabled !== false ? "selected" : ""}>Open</option><option value="false" ${config.enabled === false ? "selected" : ""}>Closed</option></select></label>
+            <label>Opening<input class="schedule-field" data-day="${day}" data-field="open" type="time" value="${escapeAttr(config.open)}"></label>
+            <label>Closing<input class="schedule-field" data-day="${day}" data-field="close" type="time" value="${escapeAttr(config.close)}"></label>
+          </div>`;
+      }).join("");
+      document.querySelectorAll(".schedule-field").forEach(input => input.addEventListener("change", () => updateDaySchedule(input)));
+    }
+
+    function filteredInventoryUi() {
+      const search = ($("inventorySearch")?.value || "").trim().toLowerCase();
+      const day = $("inventoryDayFilter")?.value || "all";
+      return state.catalogue.filter(item => {
+        const matchesSearch = !search || [item.name, item.category, item.day].some(value => String(value || "").toLowerCase().includes(search));
+        const matchesDay = day === "all" || item.day === day || (day !== "Everyday" && item.day === "Everyday");
+        return matchesSearch && matchesDay;
+      });
+    }
+
+    function renderInventory() {
+      $("inventoryCount").textContent = `${state.catalogue.length} items`;
+      $("toggleInventoryBtn").textContent = inventoryVisible ? "Hide Inventory" : "Show Inventory";
+      if (!inventoryVisible) {
+        $("inventoryList").innerHTML = `<div class="student-row"><div><strong>Inventory hidden</strong><span>Click Show Inventory only when you need to inspect stock, prices, day availability, or item limits.</span></div></div>`;
+        $("inventoryPager").innerHTML = "";
+        return;
+      }
+      const items = filteredInventoryUi();
+      const page = pagedItems(items, inventoryPage, 12);
+      inventoryPage = page.page;
+      $("inventoryList").innerHTML = page.rows.map(item => `
+        <div class="student-row" style="display:block;">
+          <div class="status-head">
+            <div><strong>${escapeHtml(item.name)}</strong><span>${item.day === "Everyday" ? "All days" : escapeHtml(item.day)} - ${escapeHtml(item.category)} - Stock ${Number(item.stock) || 0}</span></div>
+            <span class="badge green">${money(item.price)}</span>
+          </div>
+          <div class="student-edit-grid">
+            <label>Name<input class="inventory-edit" data-id="${escapeAttr(item.id)}" data-field="name" value="${escapeAttr(item.name)}"></label>
+            <label>Day<select class="inventory-edit" data-id="${escapeAttr(item.id)}" data-field="day"><option value="Everyday" ${item.day === "Everyday" ? "selected" : ""}>All days</option>${DAYS.map(day => `<option value="${day}" ${item.day === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
+            <label>Category<select class="inventory-edit" data-id="${escapeAttr(item.id)}" data-field="category">${["Hot food", "Snack", "Drink", "Daily chips"].map(category => `<option ${item.category === category ? "selected" : ""}>${category}</option>`).join("")}</select></label>
+            <label>Price ₹<input class="inventory-edit" data-id="${escapeAttr(item.id)}" data-field="price" type="number" min="1" value="${Number(item.price) || 0}"></label>
+            <label>Stock<input class="inventory-edit" data-id="${escapeAttr(item.id)}" data-field="stock" type="number" min="0" value="${Number(item.stock) || 0}"></label>
+            <label>Limit/student/day<input class="inventory-edit" data-id="${escapeAttr(item.id)}" data-field="purchaseLimit" type="number" min="0" value="${itemPurchaseLimit(item)}"></label>
+            <label>Save<button class="primary save-inventory" data-id="${escapeAttr(item.id)}" type="button">Save Item</button></label>
+          </div>
+        </div>`).join("") || `<div class="student-row"><div><strong>No matching inventory</strong><span>Try a different search or day filter.</span></div></div>`;
+      renderPager("inventoryPager", page.page, page.totalPages, items.length, "inventory");
+      document.querySelectorAll(".save-inventory").forEach(btn => btn.addEventListener("click", () => saveInventoryItem(btn.dataset.id)));
     }
 
     function filteredStudents(searchId) {
@@ -2577,7 +2740,8 @@
         </div>`;
       document.querySelectorAll(`.${prefix}-page`).forEach(btn => btn.addEventListener("click", () => {
         if (prefix === "roster") rosterPage = Number(btn.dataset.page);
-        else loginPage = Number(btn.dataset.page);
+        else if (prefix === "login") loginPage = Number(btn.dataset.page);
+        else if (prefix === "inventory") inventoryPage = Number(btn.dataset.page);
         render();
       }));
     }
@@ -2752,6 +2916,38 @@
       state.history.unshift(`Updated student ${student.name}`);
       render();
       toast(`${student.name} updated.`);
+    }
+
+    function updateDaySchedule(input) {
+      const day = input.dataset.day;
+      const field = input.dataset.field;
+      if (!DAYS.includes(day) || !field) return;
+      const current = state.daySchedule[day] || clone(DEFAULT_DAY_SCHEDULE[day]);
+      if (field === "enabled") current.enabled = input.value === "true";
+      else current[field] = validTimeInput(input.value) ? input.value : current[field];
+      state.daySchedule[day] = current;
+      state.openOverrideDate = null;
+      state.openOverrideOpen = null;
+      state.history.unshift(`Updated ${day} tuck shop timing`);
+      render();
+      toast(`${day} schedule saved.`);
+    }
+
+    function saveInventoryItem(id) {
+      const item = state.catalogue.find(entry => entry.id === id);
+      if (!item) return toast("Inventory item not found.");
+      document.querySelectorAll(`.inventory-edit[data-id="${CSS.escape(id)}"]`).forEach(input => {
+        const field = input.dataset.field;
+        const value = input.value.trim();
+        if (field === "price") item.price = Math.max(1, Number(value) || 1);
+        else if (field === "stock") item.stock = Math.max(0, Number(value) || 0);
+        else if (field === "purchaseLimit") item.purchaseLimit = Math.max(0, Number(value) || 0);
+        else item[field] = value;
+      });
+      item.day = item.day === "All days" ? "Everyday" : item.day;
+      state.history.unshift(`Updated inventory item ${item.name}`);
+      render();
+      toast(`${item.name} saved.`);
     }
 
     function requireStudent() {
@@ -3812,6 +4008,19 @@
     $("loginPageSize").addEventListener("change", () => {
       loginPage = 1;
       renderStudentLogins();
+    });
+    $("toggleInventoryBtn").addEventListener("click", () => {
+      inventoryVisible = !inventoryVisible;
+      inventoryPage = 1;
+      renderCatalogueAdmin();
+    });
+    $("inventorySearch").addEventListener("input", () => {
+      inventoryPage = 1;
+      renderInventory();
+    });
+    $("inventoryDayFilter").addEventListener("change", () => {
+      inventoryPage = 1;
+      renderInventory();
     });
     $("clearImportBtn").addEventListener("click", () => $("importText").value = "");
     $("templateImportBtn").addEventListener("click", downloadStudentMasterTemplate);
