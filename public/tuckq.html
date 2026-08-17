@@ -997,7 +997,7 @@
         <p class="muted" id="ssoHint">Use school Azure SSO when configured. Password login remains available for local/admin setup.</p>
       </div>
       <label class="login-id-field">ID card number
-        <input id="loginId" autocomplete="off" placeholder="Example: TISB1042">
+        <input id="loginId" autocomplete="off" placeholder="Enter school ID">
       </label>
       <label class="login-name-field">Name
         <input id="loginName" autocomplete="name" placeholder="Your full name">
@@ -1240,7 +1240,7 @@
                 </label>
               </div>
               <div class="form-grid" style="margin-top:16px;">
-                <label>Student ID / NFC card UID<input id="posStudentId" placeholder="Tap card or type TISB1042"></label>
+                <label>Student ID / NFC card UID<input id="posStudentId" placeholder="Tap card or type student ID"></label>
                 <label>Student name<input id="posStudentName" placeholder="Auto-filled if imported"></label>
               </div>
               <div class="actions" style="margin-top:12px;">
@@ -1340,9 +1340,7 @@
                 <label>Student master URL<input id="studentMasterUrl" placeholder="Published CSV or direct Excel link"></label>
                 <label>Import mode<select id="studentImportMode"><option value="upsert">Add/update listed students</option><option value="sync">Sync sheet and block missing students</option><option value="delete">Sync and delete missing unused students</option></select></label>
               </div>
-              <textarea id="importText">Student ID,Name,Email,Class,Card UID,Limit,Status
-TISB1042,Aarav Nair,tisb1042@tisb.ac.in,Grade 9 - Nile,CARD1042,2500,active
-TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active</textarea>
+              <textarea id="importText">Student ID,Name,Email,Class,Card UID,Limit,Status</textarea>
               <div class="actions" style="margin-top:12px;">
                 <button class="primary" id="importBtn">Import Student Master</button>
                 <button class="quiet" id="fetchMasterBtn">Fetch URL</button>
@@ -1389,7 +1387,6 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
               <div class="actions" style="margin-top:16px;">
                 <button class="primary" id="saveSettingsBtn">Save Settings</button>
                 <button class="quiet" id="exportBtn">Export All Data</button>
-                <button class="danger" id="resetBtn">Reset Local Data</button>
               </div>
             </div>
             <div class="panel">
@@ -1416,7 +1413,6 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
               </div>
               <div class="actions" style="margin-top:16px;">
                 <button class="primary" id="createStudentLoginBtn">Create Student Login</button>
-                <button class="quiet" id="prefillLoginBtn">Fill Example</button>
               </div>
             </div>
             <div class="panel">
@@ -1425,6 +1421,27 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
                 <span class="badge blue" id="loginCount">0 active</span>
               </div>
               <div class="roster-list" id="loginList" style="margin-top:16px;"></div>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="panel">
+              <h3>Create POS PIN</h3>
+              <p class="muted" style="margin:6px 0 0;">Only Admin can create or manage counter PINs. POS staff log in with one active PIN.</p>
+              <div class="form-grid" style="margin-top:16px;">
+                <label>Counter / staff label<input id="posPinLabel" placeholder="Example: Main Counter"></label>
+                <label>POS PIN<input id="posPinCode" inputmode="numeric" autocomplete="new-password" type="password" placeholder="4-8 digit PIN"></label>
+                <label>Status<select id="posPinStatus"><option value="active">Active</option><option value="disabled">Disabled</option></select></label>
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="primary" id="createPosPinBtn">Create POS PIN</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="status-head">
+                <h3>POS PIN Access</h3>
+                <span class="badge blue" id="posPinCount">0 active</span>
+              </div>
+              <div class="roster-list" id="posPinList" style="margin-top:16px;"></div>
             </div>
           </div>
           <div class="panel">
@@ -1538,14 +1555,9 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
     const STORAGE = "tisb-queless-state-v3";
     const LEGACY_STORAGE = "tisb-queless-state-v1";
     const DAILY_PURCHASE_LIMIT = 280;
-    const DEFAULT_STUDENTS = [
-      { id: "TISB1042", name: "Aarav Nair", className: "Grade 9 - Nile", email: "tisb1042@tisb.ac.in", cardUid: "CARD1042", password: "student1042", accountLimit: 2500, status: "active" },
-      { id: "TISB1043", name: "Diya Sharma", className: "Grade 8 - Cauvery", email: "tisb1043@tisb.ac.in", cardUid: "CARD1043", password: "student1043", accountLimit: 2500, status: "active" },
-      { id: "TISB1044", name: "Rehan Pillai", className: "Grade 10 - Ganga", email: "tisb1044@tisb.ac.in", cardUid: "CARD1044", password: "student1044", accountLimit: 3000, status: "active" },
-      { id: "TISB1045", name: "Anika Rao", className: "Grade 7 - Yamuna", email: "tisb1045@tisb.ac.in", cardUid: "CARD1045", password: "student1045", accountLimit: 2200, status: "active" },
-      { id: "TISB1046", name: "Kabir Menon", className: "Grade 11 - Nile", email: "tisb1046@tisb.ac.in", cardUid: "CARD1046", password: "student1046", accountLimit: 3500, status: "active" },
-      { id: "TISB1047", name: "Maya Iyer", className: "Grade 6 - Cauvery", email: "tisb1047@tisb.ac.in", cardUid: "CARD1047", password: "student1047", accountLimit: 2000, status: "active" }
-    ];
+    const PRODUCTION_CLEANUP_VERSION = "2026-08-17-no-demo-logins";
+    const DEFAULT_STUDENTS = [];
+    const LEGACY_DEMO_STUDENT_IDS = Array.from({ length: 6 }, (_, index) => `TISB${1042 + index}`);
 
     const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const DEFAULT_CATALOGUE = [
@@ -1592,6 +1604,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       bookings: [],
       queue: [],
       students: DEFAULT_STUDENTS,
+      posPins: [],
       catalogue: DEFAULT_CATALOGUE,
       selectedPosDay: new Date().toLocaleDateString("en-US", { weekday: "long" }),
       cart: [],
@@ -1601,7 +1614,8 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       sales: [],
       mailOutbox: [],
       lastReceipt: null,
-      history: ["Booked After School 3:45-3:55 PM", "Almost your turn warning sent", "Served yesterday at 4:18 PM"]
+      history: [],
+      productionCleanupVersion: PRODUCTION_CLEANUP_VERSION
     };
 
     let state = loadState();
@@ -1646,10 +1660,9 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
 
     function normalizeState(source) {
       const merged = { ...clone(initialState), ...source };
-      merged.students = Array.isArray(source.students) && source.students.length ? source.students : DEFAULT_STUDENTS;
-      DEFAULT_STUDENTS.forEach(defaultStudent => {
-        if (!merged.students.some(student => student.id === defaultStudent.id)) merged.students.push(clone(defaultStudent));
-      });
+      const needsProductionCleanup = source.productionCleanupVersion !== PRODUCTION_CLEANUP_VERSION;
+      const demoIds = new Set(LEGACY_DEMO_STUDENT_IDS);
+      merged.students = Array.isArray(source.students) ? source.students : DEFAULT_STUDENTS;
       merged.students = merged.students.map(student => ({
         ...student,
         className: student.className || "Unassigned",
@@ -1674,11 +1687,35 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       merged.preorders = Array.isArray(source.preorders) ? source.preorders : [];
       merged.sales = Array.isArray(source.sales) ? source.sales : [];
       merged.mailOutbox = Array.isArray(source.mailOutbox) ? source.mailOutbox : [];
+      if (needsProductionCleanup) {
+        merged.students = merged.students.filter(student => !demoIds.has(String(student.id || "").toUpperCase()));
+        ["queue", "bookings", "sales", "preorders", "mailOutbox"].forEach(key => {
+          if (Array.isArray(merged[key])) {
+            merged[key] = merged[key].filter(entry => {
+              const id = String(entry.studentId || entry.id || "").toUpperCase();
+              return !demoIds.has(id);
+            });
+          }
+        });
+        merged.cart = [];
+        merged.preorderCart = [];
+        merged.myTicket = null;
+        merged.lastReceipt = null;
+        merged.history = [];
+      }
+      merged.posPins = Array.isArray(source.posPins) ? source.posPins.map(pin => ({
+        id: pin.id || `POS-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+        label: String(pin.label || "POS Counter").trim() || "POS Counter",
+        code: String(pin.code || "").trim(),
+        status: pin.status === "disabled" ? "disabled" : "active",
+        created: pin.created || todayKey()
+      })).filter(pin => /^\d{4,8}$/.test(pin.code)) : [];
       merged.lastReceipt = source.lastReceipt || null;
       merged.selectedPosDay = DAYS.includes(source.selectedPosDay) ? source.selectedPosDay : initialState.selectedPosDay;
       merged.slotIncrement = Number(source.slotIncrement) || 10;
       merged.slotCapacity = Number(source.slotCapacity) || 18;
       merged.nextNumber = Number(source.nextNumber) || 36;
+      merged.productionCleanupVersion = PRODUCTION_CLEANUP_VERSION;
       merged.bookings.forEach(booking => {
         if (!booking.ticket) {
           booking.ticket = merged.nextNumber++;
@@ -1900,6 +1937,52 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       return { ok: true, updated: false, student };
     }
 
+    function activePosPin(code) {
+      const cleanCode = String(code || "").trim();
+      if (!cleanCode) return null;
+      return state.posPins.find(pin => pin.status === "active" && pin.code === cleanCode);
+    }
+
+    function createPosPin() {
+      const label = $("posPinLabel").value.trim() || "POS Counter";
+      const code = $("posPinCode").value.trim();
+      const status = $("posPinStatus").value;
+      if (!/^\d{4,8}$/.test(code)) return toast("Create a numeric POS PIN between 4 and 8 digits.");
+      const existing = state.posPins.find(pin => pin.code === code);
+      if (existing) return toast("That POS PIN already exists. Use a different PIN.");
+      state.posPins.push({
+        id: `POS-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+        label,
+        code,
+        status,
+        created: todayKey()
+      });
+      $("posPinLabel").value = "";
+      $("posPinCode").value = "";
+      $("posPinStatus").value = "active";
+      state.history.unshift(`Created POS PIN for ${label}`);
+      render();
+      toast(`POS PIN created for ${label}.`);
+    }
+
+    function setPosPinStatus(id, status) {
+      const pin = state.posPins.find(entry => entry.id === id);
+      if (!pin) return toast("POS PIN not found.");
+      pin.status = status;
+      state.history.unshift(`${status === "active" ? "Activated" : "Disabled"} POS PIN for ${pin.label}`);
+      render();
+      toast(`POS PIN ${status === "active" ? "activated" : "disabled"}.`);
+    }
+
+    function deletePosPin(id) {
+      const pin = state.posPins.find(entry => entry.id === id);
+      if (!pin) return toast("POS PIN not found.");
+      state.posPins = state.posPins.filter(entry => entry.id !== id);
+      state.history.unshift(`Removed POS PIN for ${pin.label}`);
+      render();
+      toast(`POS PIN removed for ${pin.label}.`);
+    }
+
     function portalCopy(role) {
       const copy = {
         student: {
@@ -1908,25 +1991,25 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
           button: "Enter Student Portal",
           hint: "Student access uses the ID card number and password created by Admin.",
           badge: "Student access",
-          idPlaceholder: "Example: TISB1042",
+          idPlaceholder: "Enter school ID",
           namePlaceholder: "Student name"
         },
         operator: {
           title: "POS Portal Login",
           subtitle: "Counter billing, card lookup, receipts, and queue calling.",
           button: "Enter POS Portal",
-          hint: "Counter staff only need the shared POS code. Default local code: 4321.",
+          hint: "Counter staff enter an active POS PIN created by Admin.",
           badge: "POS staff access",
-          idPlaceholder: "Auto: STAFF01",
+          idPlaceholder: "Not required for POS PIN",
           namePlaceholder: "Staff name"
         },
         teacher: {
           title: "Teacher Duty Login",
           subtitle: "Supervise queue tickets, call batches, and monitor pickup flow.",
           button: "Enter Teacher Portal",
-          hint: "Use school Microsoft SSO or the teacher duty password.",
+          hint: "Teacher access is assigned through school Microsoft SSO.",
           badge: "Teacher access",
-          idPlaceholder: "Example: TEACHER01",
+          idPlaceholder: "Use Microsoft SSO",
           namePlaceholder: "Teacher name"
         },
         admin: {
@@ -1945,13 +2028,6 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
     function openPortal(role) {
       selectedPortal = role;
       const copy = portalCopy(role);
-      const defaults = {
-        student: { id: "TISB1042", name: "Aarav Nair", password: "student1042" },
-        operator: { id: "STAFF01", name: "Tuck Shop Staff", password: "staff123" },
-        teacher: { id: "TEACHER01", name: "Teacher Duty", password: "teacher123" },
-        admin: { id: "ADMIN01", name: "School Admin", password: "admin123" }
-      };
-      const preset = defaults[role] || defaults.student;
       $("loginRole").value = role;
       $("loginTitle").textContent = copy.title;
       $("loginSubtitle").textContent = copy.subtitle;
@@ -1960,9 +2036,9 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       $("loginBadge").textContent = copy.badge;
       $("loginId").placeholder = copy.idPlaceholder;
       $("loginName").placeholder = copy.namePlaceholder;
-      $("loginId").value = preset.id;
-      $("loginName").value = preset.name;
-      $("loginPassword").value = role === "operator" ? "" : preset.password;
+      $("loginId").value = role === "admin" ? "ADMIN01" : "";
+      $("loginName").value = "";
+      $("loginPassword").value = "";
       $("loginPassword").placeholder = role === "operator" ? "Enter POS code" : "Enter password";
       $("loginPasswordLabel").childNodes[0].nodeValue = role === "operator" ? "POS code " : "Password ";
       $("loginForm").classList.toggle("operator-code-mode", role === "operator");
@@ -2170,6 +2246,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       renderAccount();
       renderCatalogueAdmin();
       renderStudentLogins();
+      renderPosPins();
       renderMailOutbox();
       renderCustomReportFilters();
       save();
@@ -2321,6 +2398,14 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
 
     function renderAccount() {
       const student = activeStudent() || state.students[0];
+      if (!student) {
+        $("accountStudentBadge").textContent = "No student selected";
+        $("dailySpend").textContent = money(0);
+        $("weeklySpend").textContent = money(0);
+        $("monthlySpend").textContent = money(0);
+        $("accountTable").innerHTML = `<tr><td colspan="5">No student accounts have been created yet.</td></tr>`;
+        return;
+      }
       const sales = student ? salesForStudent(student.id) : [];
       const today = todayKey();
       const daily = dailySpendFor(student.id);
@@ -2378,7 +2463,22 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
             <div><strong>${student.name}</strong><span>${student.id} - ${student.email} - ${student.className} - Card ${student.cardUid || "not mapped"} - password set - ${money(daily)} today / ${money(monthly)} month</span></div>
             <span class="badge ${tone}">${student.status === "blocked" ? "Blocked" : `${money(dailyRemaining)} today`}</span>
           </div>`;
-      }).join("");
+      }).join("") || `<div class="student-row"><div><strong>No student logins yet</strong><span>Create one manually or import the school student master.</span></div></div>`;
+    }
+
+    function renderPosPins() {
+      const activeCount = state.posPins.filter(pin => pin.status === "active").length;
+      $("posPinCount").textContent = `${activeCount} active`;
+      $("posPinList").innerHTML = state.posPins.map(pin => `
+        <div class="student-row">
+          <div><strong>${pin.label}</strong><span>PIN ${"•".repeat(Math.min(8, pin.code.length))} - ${pin.status === "active" ? "Active" : "Disabled"} - created ${pin.created || todayKey()}</span></div>
+          <div class="actions">
+            <button class="quiet pos-pin-toggle" data-id="${pin.id}" data-status="${pin.status === "active" ? "disabled" : "active"}">${pin.status === "active" ? "Disable" : "Activate"}</button>
+            <button class="danger pos-pin-delete" data-id="${pin.id}">Remove</button>
+          </div>
+        </div>`).join("") || `<div class="student-row"><div><strong>No POS PINs yet</strong><span>Create the first POS PIN before giving counter staff access.</span></div></div>`;
+      document.querySelectorAll(".pos-pin-toggle").forEach(btn => btn.addEventListener("click", () => setPosPinStatus(btn.dataset.id, btn.dataset.status)));
+      document.querySelectorAll(".pos-pin-delete").forEach(btn => btn.addEventListener("click", () => deletePosPin(btn.dataset.id)));
     }
 
     function renderMailOutbox() {
@@ -2751,8 +2851,7 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
 
     function downloadStudentMasterTemplate() {
       downloadCsv("tuckq-student-master-template.csv", [
-        ["Student ID", "Name", "Email", "Class", "Card UID", "Limit", "Status"],
-        ["TISB1042", "Aarav Nair", "tisb1042@tisb.ac.in", "Grade 9 - Nile", "CARD1042", "2500", "active"]
+        ["Student ID", "Name", "Email", "Class", "Card UID", "Limit", "Status"]
       ]);
     }
 
@@ -3359,25 +3458,28 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       event.preventDefault();
       safe(() => {
         const role = $("loginRole").value;
-        const demoId = role === "student" ? "TISB1042" : role === "operator" ? "STAFF01" : role === "teacher" ? "TEACHER01" : "ADMIN01";
-        const id = role === "operator" ? "STAFF01" : ($("loginId").value.trim().toUpperCase() || demoId);
-        const defaultPassword = role === "student" ? `student${id.slice(-4)}` : role === "operator" ? "staff123" : role === "teacher" ? "teacher123" : "admin123";
-        const password = $("loginPassword").value.trim() || defaultPassword;
-        let name = role === "operator" ? "Tuck Shop Staff" : ($("loginName").value.trim() || (role === "student" ? "Aarav Nair" : role === "teacher" ? "Teacher Duty" : "School Admin"));
+        const id = $("loginId").value.trim().toUpperCase();
+        const password = $("loginPassword").value.trim();
+        let name = $("loginName").value.trim();
         if (role === "student") {
           const student = findStudent(id);
+          if (!id || !password) return toast("Enter your student ID and password.");
           if (!student) return toast("Student login not found. Ask Admin to create it first.");
           if (student.status === "blocked") return toast("This student login is blocked.");
           if (String(student.password) !== password) return toast("Incorrect student password.");
           name = student.name;
-        } else if (role === "operator" && !["4321", "staff123"].includes(password)) {
-          return toast("Incorrect POS code.");
-        } else if (role === "teacher" && password !== "teacher123") {
-          return toast("Incorrect teacher password for this local build.");
-        } else if (role === "admin" && password !== "admin123") {
-          return toast("Incorrect admin password for this local build.");
+        } else if (role === "operator") {
+          const pin = activePosPin(password);
+          if (!state.posPins.length) return toast("No POS PIN has been created yet. Ask Admin to create one.");
+          if (!pin) return toast("Incorrect or disabled POS PIN.");
+          name = pin.label;
+        } else if (role === "teacher") {
+          return toast("Teacher access is through school Microsoft SSO.");
+        } else if (role === "admin") {
+          if (id !== "ADMIN01" || password !== "admin123") return toast("Incorrect admin ID or password.");
+          name = "School Admin";
         }
-        state.user = { role, id, name };
+        state.user = { role, id: role === "operator" ? "POS" : id, name };
         save();
         showScreen("appScreen");
         applyRoleAccess();
@@ -3472,10 +3574,9 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       toast("TISB settings saved.");
     });
     $("exportBtn").addEventListener("click", exportToday);
-    $("resetBtn").addEventListener("click", resetLocalData);
     $("addItemBtn").addEventListener("click", addCatalogueItem);
     $("createStudentLoginBtn").addEventListener("click", createStudentLogin);
-    $("prefillLoginBtn").addEventListener("click", prefillStudentLogin);
+    $("createPosPinBtn").addEventListener("click", createPosPin);
     $("reportSalesBtn").addEventListener("click", () => downloadCsv(`tisb-pos-sales-${todayKey()}.csv`, salesReportRows()));
     $("reportLedgerBtn").addEventListener("click", () => downloadCsv(`tisb-student-ledger-${todayKey()}.csv`, ledgerReportRows()));
     $("reportInventoryBtn").addEventListener("click", () => downloadCsv(`tisb-inventory-${todayKey()}.csv`, inventoryReportRows()));

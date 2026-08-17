@@ -17,6 +17,7 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 - Student account view with daily, weekly, monthly, and item-level bills
 - Operator controls for opening and closing the tuck shop
 - Admin student login creation/import flow
+- Admin-created POS PIN access for tuck shop counter staff
 - Day-wise menu management, including everyday chips items
 - Downloadable reports for sales, students, and billing
 - Email receipt/warning flow through the hosted `/api/mail` endpoint
@@ -24,13 +25,15 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 - Structured database tables for students, sales, sale items, queue, bookings,
   preorders, menu items, mail events, and settings
 
-## Demo Access
+## Launch Access
 
-Use these seeded accounts for presentation and testing:
+The production launch build ships with only one local admin account:
 
-- Student: `TISB1042` / `student1042`
-- Operator: `STAFF01` / `staff123`
 - Admin: `ADMIN01` / `admin123`
+
+Students must be imported or created by Admin before they can use password
+login. POS staff must use a POS PIN created by Admin. Teacher/staff SSO access
+should be assigned through Microsoft Entra roles.
 
 ## Email Setup
 
