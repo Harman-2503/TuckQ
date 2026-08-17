@@ -1767,6 +1767,8 @@ TISB1043,Diya Sharma,tisb1043@tisb.ac.in,Grade 8 - Cauvery,CARD1043,2500,active<
       const finalStudent = rosterMatch || findStudent(user.id);
       state.user = {
         role,
+        roleSource: user.roleSource || "Microsoft SSO",
+        requestedRole: user.requestedRole || role,
         id: role === "student" ? (finalStudent?.id || user.id) : user.id,
         name: role === "student" ? (finalStudent?.name || user.name) : user.name,
         email: user.email,

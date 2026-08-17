@@ -4,6 +4,8 @@ export type TuckQRole = "admin" | "student" | "teacher" | "operator";
 
 export type AzureUser = {
   role: TuckQRole;
+  roleSource?: string;
+  requestedRole?: string;
   id: string;
   name: string;
   email: string;
@@ -22,6 +24,7 @@ type JwtClaims = {
   oid?: string;
   roles?: string[];
   groups?: string[];
+  _claim_names?: Record<string, string>;
 };
 
 const sessionCookie = "tuckq_azure_session";
@@ -174,44 +177,78 @@ function envList(key: string) {
     .filter(Boolean);
 }
 
-function hasAny(values: unknown, accepted: string[]) {
-  const list = Array.isArray(values) ? values.map((value) => String(value).toLowerCase()) : [];
-  return list.some((value) => accepted.includes(value));
+function firstMatch(values: string[], accepted: string[]) {
+  return values.find((value) => accepted.includes(value));
 }
 
 export function userFromClaims(claims: JwtClaims, requestedRole: string): AzureUser {
   const email = String(claims.email || claims.preferred_username || claims.upn || "").toLowerCase();
   const roleClaims = Array.isArray(claims.roles) ? claims.roles.map((role) => role.toLowerCase()) : [];
   const groupClaims = Array.isArray(claims.groups) ? claims.groups.map((group) => group.toLowerCase()) : [];
+  const requested = ["admin", "student", "teacher", "operator"].includes(requestedRole) ? requestedRole : "student";
+  const roleRules: Array<{
+    role: Exclude<TuckQRole, "student">;
+    emails: string;
+    groups: string;
+    appRoles: string[];
+    label: string;
+  }> = [
+    {
+      role: "admin",
+      emails: "AZURE_ADMIN_EMAILS",
+      groups: "AZURE_ADMIN_GROUP_IDS",
+      appRoles: ["admin", "tuckq.admin", "schooladmin", "school_admin"],
+      label: "Admin",
+    },
+    {
+      role: "operator",
+      emails: "AZURE_OPERATOR_EMAILS",
+      groups: "AZURE_OPERATOR_GROUP_IDS",
+      appRoles: ["operator", "tuckq.operator", "pos", "pos_operator", "tuckq.pos"],
+      label: "POS operator",
+    },
+    {
+      role: "teacher",
+      emails: "AZURE_TEACHER_EMAILS",
+      groups: "AZURE_TEACHER_GROUP_IDS",
+      appRoles: ["teacher", "tuckq.teacher", "faculty"],
+      label: "Teacher",
+    },
+  ];
   let role: TuckQRole = "student";
+  let roleSource = "student default";
 
-  if (
-    envList("AZURE_ADMIN_EMAILS").includes(email) ||
-    hasAny(roleClaims, ["admin", "tuckq.admin", "schooladmin", "school_admin"]) ||
-    groupClaims.some((group) => envList("AZURE_ADMIN_GROUP_IDS").includes(group))
-  ) {
-    role = "admin";
-  } else if (
-    envList("AZURE_TEACHER_EMAILS").includes(email) ||
-    hasAny(roleClaims, ["teacher", "tuckq.teacher", "faculty"]) ||
-    groupClaims.some((group) => envList("AZURE_TEACHER_GROUP_IDS").includes(group))
-  ) {
-    role = "teacher";
-  } else if (
-    envList("AZURE_OPERATOR_EMAILS").includes(email) ||
-    hasAny(roleClaims, ["operator", "tuckq.operator", "pos"]) ||
-    groupClaims.some((group) => envList("AZURE_OPERATOR_GROUP_IDS").includes(group))
-  ) {
-    role = "operator";
+  for (const rule of roleRules) {
+    const emailMatch = envList(rule.emails).includes(email);
+    const roleMatch = firstMatch(roleClaims, rule.appRoles);
+    const groupMatch = firstMatch(groupClaims, envList(rule.groups));
+    if (emailMatch || roleMatch || groupMatch) {
+      role = rule.role;
+      roleSource = emailMatch
+        ? `${rule.label} email allowlist`
+        : roleMatch
+          ? `${rule.label} Microsoft app role`
+          : `${rule.label} Microsoft group`;
+      break;
+    }
   }
 
-  if (role === "student" && requestedRole === "teacher" && envList("AZURE_TEACHER_EMAILS").includes(email)) role = "teacher";
-  if (role === "student" && requestedRole === "admin" && envList("AZURE_ADMIN_EMAILS").includes(email)) role = "admin";
+  if (role === "student") {
+    const requestedRule = roleRules.find((rule) => rule.role === requested);
+    if (requestedRule && envList(requestedRule.emails).includes(email)) {
+      role = requestedRule.role;
+      roleSource = `${requestedRule.label} email allowlist`;
+    } else if (claims._claim_names?.groups) {
+      roleSource = "student default; Microsoft did not include groups in token";
+    }
+  }
 
   const localPart = email.split("@")[0] || claims.oid || "azure-user";
   const studentId = localPart.startsWith("tisb") ? localPart.toUpperCase() : localPart.toUpperCase();
   return {
     role,
+    roleSource,
+    requestedRole: requested,
     id: role === "student" ? studentId : String(claims.oid || localPart).toUpperCase(),
     name: String(claims.name || email || "Azure user"),
     email,

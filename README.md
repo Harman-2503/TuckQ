@@ -92,12 +92,28 @@ Configure these production environment variables in Sites:
 - `AZURE_SESSION_SECRET` with a long random value
 - `AZURE_REDIRECT_URI` if the final domain changes
 
-Role mapping supports Microsoft app roles, email allowlists, or group IDs:
+Role mapping supports Microsoft app roles, email allowlists, or group IDs.
+The button a person clicks does not grant access; it only starts sign-in.
+After Microsoft confirms the user, TuckQ assigns the highest matching role in
+this order: Admin, POS Operator, Teacher, then Student.
 
 - Admin: `TuckQ.Admin` / `admin`, `AZURE_ADMIN_EMAILS`, or `AZURE_ADMIN_GROUP_IDS`
-- Teacher: `TuckQ.Teacher` / `teacher`, `AZURE_TEACHER_EMAILS`, or `AZURE_TEACHER_GROUP_IDS`
 - Operator: `TuckQ.Operator` / `operator`, `AZURE_OPERATOR_EMAILS`, or `AZURE_OPERATOR_GROUP_IDS`
+- Teacher: `TuckQ.Teacher` / `teacher`, `AZURE_TEACHER_EMAILS`, or `AZURE_TEACHER_GROUP_IDS`
 - Student: default role for signed-in school users
+
+Recommended school setup:
+
+1. In Microsoft Entra, create app roles named `TuckQ.Admin`,
+   `TuckQ.Operator`, and `TuckQ.Teacher`.
+2. Assign those app roles only to the correct staff members or security groups.
+3. Leave students without any TuckQ staff role. They automatically enter the
+   Student portal.
+4. Use `AZURE_ADMIN_EMAILS`, `AZURE_OPERATOR_EMAILS`, and
+   `AZURE_TEACHER_EMAILS` only for emergency/manual overrides.
+5. If using group IDs instead of app roles, put the Entra object IDs in
+   `AZURE_ADMIN_GROUP_IDS`, `AZURE_OPERATOR_GROUP_IDS`, and
+   `AZURE_TEACHER_GROUP_IDS`.
 
 Students whose Azure email starts with their school ID, such as
 `tisb1042@tisb.ac.in`, are matched automatically to the same TuckQ student
