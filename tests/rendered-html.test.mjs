@@ -33,6 +33,9 @@ test("TuckQ app replaces the starter preview", async () => {
   assert.match(oldUi, /Student master file/);
   assert.match(oldUi, /Published CSV, Google Sheet, or downloadable Excel link/);
   assert.match(oldUi, /\/api\/student-master/);
+  assert.match(oldUi, /Sync Microsoft Master/);
+  assert.match(oldUi, /Microsoft sync key/);
+  assert.match(oldUi, /\/api\/student-master\/graph/);
   assert.match(oldUi, /Auto-sync from URL/);
   assert.match(oldUi, /Show Students/);
   assert.match(oldUi, /Email Bill/);

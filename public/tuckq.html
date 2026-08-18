@@ -1390,21 +1390,23 @@
           <div class="grid">
             <div class="panel">
               <h3>Import Students</h3>
-              <p class="muted">Upload Excel/CSV or paste rows. Supported columns: Student ID, Name, Email, Class, Card UID, Limit, Status.</p>
+              <p class="muted">Upload Excel/CSV, paste rows, or sync the school SharePoint master through Microsoft Graph. Supported columns: Student ID, Name, Email, Class, Card UID, Limit, Status.</p>
               <div class="form-grid" style="margin-top:16px;">
                 <label>Student master file<input id="studentMasterFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
                 <label>Student master URL<input id="studentMasterUrl" placeholder="Published CSV, Google Sheet, or downloadable Excel link"></label>
                 <label>Import mode<select id="studentImportMode"><option value="upsert">Add/update listed students</option><option value="sync">Sync sheet and block missing students</option><option value="delete">Sync and delete missing unused students</option></select></label>
-                <label>Low-touch sync<select id="studentMasterAutoSync"><option value="off">Manual only</option><option value="on">Auto-sync from URL</option></select></label>
+                <label>Low-touch sync<select id="studentMasterAutoSync"><option value="off">Manual only</option><option value="on">Auto-sync from URL/Graph</option></select></label>
+                <label>Microsoft sync key<input id="graphSyncKey" type="password" autocomplete="off" placeholder="Only if Azure Admin SSO is not active"></label>
               </div>
               <textarea id="importText">Student ID,Name,Email,Class,Card UID,Limit,Status</textarea>
               <div class="actions" style="margin-top:12px;">
                 <button class="primary" id="importBtn">Import Student Master</button>
                 <button class="quiet" id="fetchMasterBtn">Sync URL Now</button>
+                <button class="quiet" id="syncGraphMasterBtn">Sync Microsoft Master</button>
                 <button class="quiet" id="clearImportBtn">Clear Box</button>
                 <button class="quiet" id="templateImportBtn">Download Template</button>
               </div>
-              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">Paste a published CSV/export link, public Google Sheet link, or direct downloadable OneDrive/SharePoint Excel link. Private preview links may need export/download access enabled.</p>
+              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">For production, use Sync Microsoft Master after IT configures Graph access. URL sync is only for published CSV/export links or direct downloadable test files.</p>
             </div>
             <div class="panel">
               <h3>Add One Student</h3>
@@ -3235,6 +3237,60 @@
       return parseDelimited(await response.text());
     }
 
+    async function rowsFromMicrosoftGraphMaster() {
+      if (!SERVER_MODE) throw new Error("Microsoft Graph sync needs the hosted/server version of TuckQ.");
+      const syncKey = $("graphSyncKey")?.value.trim() || "";
+      const graphResponse = await fetch("/api/student-master/graph", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(syncKey ? { "x-tuckq-sync-key": syncKey } : {})
+        }
+      });
+      const result = await graphResponse.json().catch(() => null);
+      if (!graphResponse.ok || !result?.ok) {
+        const missing = Array.isArray(result?.missing) && result.missing.length
+          ? ` Missing: ${result.missing.join(", ")}.`
+          : "";
+        throw new Error(`${result?.error || `Microsoft Graph sync failed (${graphResponse.status})`}${missing}`);
+      }
+      if (result.kind === "xlsx") {
+        if (!window.XLSX) throw new Error("Excel parser is loading. Try again in a moment.");
+        const binary = atob(result.base64 || "");
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+        const workbook = XLSX.read(bytes.buffer);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        return {
+          rows: XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "" }),
+          fileName: result.fileName || "Microsoft student master"
+        };
+      }
+      return {
+        rows: parseDelimited(result.text || ""),
+        fileName: result.fileName || "Microsoft student master"
+      };
+    }
+
+    async function syncMicrosoftGraphMaster({ silent = false } = {}) {
+      try {
+        $("studentMasterStatus").textContent = "Syncing student master from Microsoft Graph...";
+        const result = await rowsFromMicrosoftGraphMaster();
+        const students = rowsToStudents(result.rows);
+        if (!students.length) return toast("No valid students found in the Microsoft student master.");
+        state.studentMasterAutoSync = $("studentMasterAutoSync").value === "on";
+        state.studentMasterSyncMode = $("studentImportMode").value;
+        state.studentMasterLastSync = new Date().toISOString();
+        $("importText").value = result.rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+        applyStudentMaster(students, state.studentMasterSyncMode, { silent });
+        $("studentMasterStatus").textContent += ` Synced ${result.fileName} through Microsoft Graph at ${new Date(state.studentMasterLastSync).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.`;
+        if (!silent) toast("Student master synced from Microsoft Graph.");
+      } catch (error) {
+        $("studentMasterStatus").textContent = `Microsoft Graph sync failed: ${error.message}`;
+        if (!silent) toast(`Microsoft Graph sync failed: ${error.message}`);
+      }
+    }
+
     async function syncStudentMasterUrl({ silent = false } = {}) {
       const url = $("studentMasterUrl").value.trim();
       if (!url) return toast("Paste a published CSV or direct Excel link first.");
@@ -3261,9 +3317,13 @@
     }
 
     async function maybeAutoSyncStudentMaster() {
-      if (!state.studentMasterAutoSync || !state.studentMasterUrl || !SERVER_MODE) return;
+      if (!state.studentMasterAutoSync || !SERVER_MODE) return;
       const last = state.studentMasterLastSync ? Date.parse(state.studentMasterLastSync) : 0;
       if (last && Date.now() - last < 60 * 60 * 1000) return;
+      if (!state.studentMasterUrl) {
+        await syncMicrosoftGraphMaster({ silent: true });
+        return;
+      }
       if ($("studentMasterUrl")) $("studentMasterUrl").value = state.studentMasterUrl;
       if ($("studentMasterAutoSync")) $("studentMasterAutoSync").value = "on";
       if ($("studentImportMode")) $("studentImportMode").value = state.studentMasterSyncMode || "upsert";
@@ -3981,6 +4041,7 @@
     $("posNoShowBtn").addEventListener("click", () => $("noShowBtn").click());
     $("importBtn").addEventListener("click", importStudents);
     $("fetchMasterBtn").addEventListener("click", fetchStudentMasterUrl);
+    $("syncGraphMasterBtn").addEventListener("click", () => syncMicrosoftGraphMaster({ silent: false }));
     $("studentMasterFile").addEventListener("change", importStudentMasterFile);
     $("studentMasterUrl").addEventListener("change", () => {
       state.studentMasterUrl = $("studentMasterUrl").value.trim();

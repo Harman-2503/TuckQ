@@ -87,6 +87,27 @@ AZURE_SESSION_SECRET=<long random string>
 AZURE_REDIRECT_URI=https://tuckq.yourschool.edu/api/auth/azure/callback
 ```
 
+For Microsoft Graph student master sync:
+
+```text
+GRAPH_STUDENT_MASTER_SHARE_URL=<SharePoint or OneDrive sharing URL>
+TUCKQ_GRAPH_SYNC_KEY=<long random admin sync key>
+```
+
+If IT prefers fixed IDs instead of a sharing link, use:
+
+```text
+GRAPH_STUDENT_MASTER_DRIVE_ID=<drive id>
+GRAPH_STUDENT_MASTER_ITEM_ID=<file item id>
+```
+
+or:
+
+```text
+GRAPH_STUDENT_MASTER_SITE_ID=<site id>
+GRAPH_STUDENT_MASTER_PATH=Shared Documents/TuckQ/student-master.xlsx
+```
+
 For roles, use app roles or these fallback allowlists:
 
 ```text
@@ -164,7 +185,21 @@ Use a SharePoint/OneDrive Excel or CSV file with these columns:
 Student ID, Name, Email, Class, Card UID, Limit, Status
 ```
 
-Admin can paste the published CSV/Excel URL in TuckQ and enable auto-sync.
+Recommended production setup:
+
+1. Store the master Excel file in a school SharePoint/OneDrive location.
+2. In Microsoft Entra, grant the TuckQ app Microsoft Graph permission to read
+   that selected file/site.
+3. Configure `GRAPH_STUDENT_MASTER_SHARE_URL` or the drive/site variables above.
+4. In TuckQ, Admin opens **Import Students** and clicks **Sync Microsoft Master**.
+   If the admin is not signed in with Azure Admin SSO, enter the configured
+   `TUCKQ_GRAPH_SYNC_KEY` in the Microsoft sync key field first.
+
+Admin can still upload Excel/CSV manually, or use URL sync for published
+CSV/export links. Private SharePoint preview links should not be used as the
+production sync method because they often return browser redirects instead of
+file content.
+
 NFC card taps in POS should provide the same `Card UID` stored in this file.
 
 ## 9. Local Verification
@@ -194,6 +229,7 @@ CLOUDFLARE_D1_DATABASE_ID=<database id> npm run deploy:cloudflare
 - Cloudflare D1 database exists.
 - Migrations are applied.
 - Azure SSO variables are set.
+- Microsoft Graph student master sync variables are set.
 - Staff roles are assigned in Entra.
 - Student Excel/CSV sync URL is ready.
 - Final domain points to Cloudflare.

@@ -17,7 +17,7 @@ https://tuckq-tisb-shop.monicamiglani1980.chatgpt.site
 - Daily purchase limit of Rs 280 per student
 - Student account view with daily, weekly, monthly, and item-level bills
 - Operator controls for manual opening/closing, with the admin timetable resuming automatically
-- Admin student login creation/import flow with reusable Excel/CSV URL sync
+- Admin student login creation/import flow with reusable Excel/CSV import and Microsoft Graph SharePoint sync
 - Paged admin roster and login views with inline student editing
 - Admin-created POS PIN access for tuck shop counter staff
 - Day-wise menu management, including everyday chips items
@@ -124,6 +124,52 @@ Students whose Azure email starts with their school ID, such as
 `tisb1042@tisb.ac.in`, are matched automatically to the same TuckQ student
 account.
 
+## Microsoft Graph Student Master Sync
+
+For production, use Microsoft Graph instead of pasted public SharePoint links.
+This lets TuckQ read the private school Excel file directly after IT grants
+permission.
+
+Use an Excel table or first worksheet with these columns:
+
+```text
+Student ID, Name, Email, Class, Card UID, Limit, Status
+```
+
+Configure these environment variables:
+
+```text
+AZURE_TENANT_ID=<tenant id>
+AZURE_CLIENT_ID=<client id>
+AZURE_CLIENT_SECRET=<client secret>
+GRAPH_STUDENT_MASTER_SHARE_URL=<SharePoint or OneDrive sharing URL>
+TUCKQ_GRAPH_SYNC_KEY=<long random admin sync key>
+```
+
+Instead of `GRAPH_STUDENT_MASTER_SHARE_URL`, IT can use either:
+
+```text
+GRAPH_STUDENT_MASTER_DRIVE_ID=<drive id>
+GRAPH_STUDENT_MASTER_ITEM_ID=<file item id>
+```
+
+or:
+
+```text
+GRAPH_STUDENT_MASTER_SITE_ID=<site id>
+GRAPH_STUDENT_MASTER_PATH=Shared Documents/TuckQ/student-master.xlsx
+```
+
+The Azure app needs Microsoft Graph application permission to read the selected
+file/site, usually `Files.Read.All` or a stricter selected-file/site permission
+approved by school IT. In TuckQ, Admin then uses **Import Students -> Sync
+Microsoft Master**.
+
+For safety, the Microsoft master endpoint only returns roster data when the
+caller has an Azure Admin session or enters `TUCKQ_GRAPH_SYNC_KEY` in the
+Microsoft sync key field. If low-touch sync is enabled and no URL is entered,
+TuckQ will refresh from Microsoft Graph while the hosted app is in use.
+
 ## Local Development
 
 Requires Node.js `>=22.13.0`.
@@ -157,6 +203,7 @@ build commands, Azure SSO variables, custom domain setup, and launch checks.
 - `public/tuckq.html`: production TuckQ interface
 - `app/page.tsx`: hosts the TuckQ interface
 - `app/api/state/route.ts`: D1-backed app state persistence
+- `app/api/student-master/graph/route.ts`: Microsoft Graph student master sync
 - `app/api/mail/route.ts`: email sending and outbox persistence
 - `app/api/tuckq/route.ts`: TuckQ API surface
 - `drizzle/`: database migrations
