@@ -1393,7 +1393,7 @@
               <p class="muted">Upload Excel/CSV or paste rows. Supported columns: Student ID, Name, Email, Class, Card UID, Limit, Status.</p>
               <div class="form-grid" style="margin-top:16px;">
                 <label>Student master file<input id="studentMasterFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
-                <label>Student master URL<input id="studentMasterUrl" placeholder="Published CSV or direct Excel link"></label>
+                <label>Student master URL<input id="studentMasterUrl" placeholder="Published CSV, Google Sheet, or downloadable Excel link"></label>
                 <label>Import mode<select id="studentImportMode"><option value="upsert">Add/update listed students</option><option value="sync">Sync sheet and block missing students</option><option value="delete">Sync and delete missing unused students</option></select></label>
                 <label>Low-touch sync<select id="studentMasterAutoSync"><option value="off">Manual only</option><option value="on">Auto-sync from URL</option></select></label>
               </div>
@@ -1404,7 +1404,7 @@
                 <button class="quiet" id="clearImportBtn">Clear Box</button>
                 <button class="quiet" id="templateImportBtn">Download Template</button>
               </div>
-              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">Paste a published school sheet/CSV URL once, set Auto-sync from URL, and TuckQ will refresh it periodically with NFC card mappings.</p>
+              <p class="muted" id="studentMasterStatus" style="margin-top:10px;">Paste a published CSV/export link, public Google Sheet link, or direct downloadable OneDrive/SharePoint Excel link. Private preview links may need export/download access enabled.</p>
             </div>
             <div class="panel">
               <h3>Add One Student</h3>
@@ -3205,6 +3205,26 @@
     }
 
     async function rowsFromStudentMasterUrl(url) {
+      if (SERVER_MODE) {
+        const proxyResponse = await fetch("/api/student-master", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const result = await proxyResponse.json().catch(() => null);
+        if (!proxyResponse.ok || !result?.ok) {
+          throw new Error(result?.error || `Could not fetch file (${proxyResponse.status})`);
+        }
+        if (result.kind === "xlsx") {
+          if (!window.XLSX) throw new Error("Excel parser is loading. Try again in a moment.");
+          const binary = atob(result.base64 || "");
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+          const workbook = XLSX.read(bytes.buffer);
+          return XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, raw: false, defval: "" });
+        }
+        return parseDelimited(result.text || "");
+      }
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error(`Could not fetch file (${response.status})`);
       if (/\.xlsx?(\?|$)/i.test(url)) {
