@@ -24,6 +24,16 @@ function isAllowedStudentMasterHost(hostname: string) {
   return ALLOWED_HOSTS.includes(host) || host.endsWith(".sharepoint.com");
 }
 
+function base64UrlEncode(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary).replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
 function publicUrlCandidates(rawUrl: string) {
   const url = new URL(rawUrl);
   const candidates = new Set<string>();
@@ -39,6 +49,7 @@ function publicUrlCandidates(rawUrl: string) {
     const downloadUrl = new URL(url.toString());
     downloadUrl.searchParams.set("download", "1");
     candidates.add(downloadUrl.toString());
+    candidates.add(`https://api.onedrive.com/v1.0/shares/u!${base64UrlEncode(url.toString())}/root/content`);
   }
 
   return [...candidates];

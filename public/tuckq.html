@@ -3252,7 +3252,7 @@
         if (!silent) toast("Student master synced from URL.");
       } catch (error) {
         $("studentMasterStatus").textContent = `Fetch failed: ${error.message}. For private Excel files, upload the file or publish/export as CSV.`;
-        if (!silent) toast("Student master URL could not be fetched.");
+        if (!silent) toast(`Student master URL could not be fetched: ${error.message}`);
       }
     }
 
