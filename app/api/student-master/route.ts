@@ -17,11 +17,15 @@ const ALLOWED_HOSTS = [
   "drive.google.com",
   "1drv.ms",
   "onedrive.live.com",
+  "api.onedrive.com",
 ];
 
 function isAllowedStudentMasterHost(hostname: string) {
   const host = hostname.toLowerCase();
-  return ALLOWED_HOSTS.includes(host) || host.endsWith(".sharepoint.com");
+  return ALLOWED_HOSTS.includes(host) ||
+    host.endsWith(".sharepoint.com") ||
+    host.endsWith(".sharepointonline.com") ||
+    host.endsWith(".1drv.com");
 }
 
 function base64UrlEncode(value: string) {
@@ -72,6 +76,36 @@ function bufferToBase64(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
+function redirectLocation(response: Response, currentUrl: string) {
+  const location = response.headers.get("location");
+  if (!location) return "";
+  try {
+    const nextUrl = new URL(location, currentUrl);
+    if (nextUrl.protocol !== "https:" || !isAllowedStudentMasterHost(nextUrl.hostname)) return "";
+    return nextUrl.toString();
+  } catch {
+    return "";
+  }
+}
+
+async function fetchStudentMasterCandidate(candidate: string) {
+  let currentUrl = candidate;
+  for (let redirects = 0; redirects < 6; redirects++) {
+    const response = await fetch(currentUrl, {
+      redirect: "manual",
+      headers: {
+        "accept": "text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,*/*",
+        "user-agent": "TuckQ student master sync",
+      },
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const nextUrl = redirectLocation(response, currentUrl);
+    if (!nextUrl) return response;
+    currentUrl = nextUrl;
+  }
+  throw new Error("The file redirected too many times.");
+}
+
 export async function POST(request: Request) {
   const body = await request.json<{ url?: string }>().catch(() => ({}));
   const rawUrl = String(body.url || "").trim();
@@ -103,13 +137,7 @@ export async function POST(request: Request) {
   for (const candidate of publicUrlCandidates(rawUrl)) {
     tried.push(candidate);
     try {
-      const response = await fetch(candidate, {
-        redirect: "follow",
-        headers: {
-          "accept": "text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,*/*",
-          "user-agent": "TuckQ student master sync",
-        },
-      });
+      const response = await fetchStudentMasterCandidate(candidate);
       const contentType = response.headers.get("content-type") || "";
       const finalUrl = response.url || candidate;
       if (!response.ok) {
