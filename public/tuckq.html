@@ -746,6 +746,23 @@
 
     .schedule-row strong { color: var(--ink); }
 
+    .collapsible-body.is-collapsed { display: none; }
+
+    .section-tools {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .section-tools label {
+      min-width: min(260px, 100%);
+      flex: 1 1 220px;
+    }
+
+    .section-tools button { flex: 0 0 auto; }
+
     .item-btn {
       min-height: 92px;
       border: 1px solid var(--line);
@@ -1449,9 +1466,17 @@
                 <p class="section-label">School Timetable</p>
                 <h3>Day-wise Opening Hours</h3>
               </div>
-              <span class="badge blue" id="scheduleStatusBadge">Auto schedule</span>
+              <div class="actions">
+                <span class="badge blue" id="scheduleStatusBadge">Auto schedule</span>
+                <button class="quiet" id="toggleScheduleBtn" type="button">Collapse</button>
+              </div>
             </div>
-            <div class="schedule-grid" id="scheduleEditor"></div>
+            <div class="collapsible-body" id="scheduleBody">
+              <div class="section-tools">
+                <label>Edit day<select id="scheduleDaySelect"></select></label>
+              </div>
+              <div class="schedule-grid" id="scheduleEditor"></div>
+            </div>
           </div>
           <div class="grid">
             <div class="panel">
@@ -1558,16 +1583,21 @@
           </div>
           <div class="grid">
             <div class="panel">
-              <h3>Add POS Menu Item</h3>
-              <div class="form-grid" style="margin-top:16px;">
-                <label>Available on<select id="newItemDay"></select></label>
-                <label>Category<select id="newItemCategory"><option>Hot food</option><option>Snack</option><option>Drink</option><option>Daily chips</option></select></label>
-                <label>Item name<input id="newItemName" placeholder="Example: Masala Chips"></label>
-                <label>Price ₹<input id="newItemPrice" type="number" min="1" value="40"></label>
-                <label>Per-student limit/day<input id="newItemPurchaseLimit" type="number" min="0" value="0" placeholder="0 = no item limit"></label>
+              <div class="status-head">
+                <h3>Add POS Menu Item</h3>
+                <button class="quiet" id="toggleAddItemBtn" type="button">Collapse</button>
               </div>
-              <div class="actions" style="margin-top:16px;">
-                <button class="primary" id="addItemBtn">Add Item</button>
+              <div class="collapsible-body" id="addItemBody">
+                <div class="form-grid" style="margin-top:16px;">
+                  <label>Available on<select id="newItemDay"></select></label>
+                  <label>Category<select id="newItemCategory"><option>Hot food</option><option>Snack</option><option>Drink</option><option>Daily chips</option></select></label>
+                  <label>Item name<input id="newItemName" placeholder="Example: Masala Chips"></label>
+                  <label>Price ₹<input id="newItemPrice" type="number" min="1" value="40"></label>
+                  <label>Per-student limit/day<input id="newItemPurchaseLimit" type="number" min="0" value="0" placeholder="0 = no item limit"></label>
+                </div>
+                <div class="actions" style="margin-top:16px;">
+                  <button class="primary" id="addItemBtn">Add Item</button>
+                </div>
               </div>
             </div>
             <div class="panel">
@@ -1584,14 +1614,19 @@
                 <p class="section-label">Inventory</p>
                 <h3>Inventory Management</h3>
               </div>
-              <span class="badge blue" id="inventoryCount">0 items</span>
+              <div class="actions">
+                <span class="badge blue" id="inventoryCount">0 items</span>
+                <button class="quiet" id="toggleInventoryBtn" type="button">Collapse</button>
+              </div>
             </div>
-            <div class="filter-row">
-              <label>Search inventory<input id="inventorySearch" placeholder="Item or category"></label>
-              <label>Day<select id="inventoryDayFilter"><option value="all">All days</option></select></label>
+            <div class="collapsible-body" id="inventoryBody">
+              <div class="filter-row">
+                <label>Search inventory<input id="inventorySearch" placeholder="Item or category"></label>
+                <label>Day<select id="inventoryDayFilter"><option value="all">All days</option></select></label>
+              </div>
+              <div class="roster-list" id="inventoryList" style="margin-top:16px;"></div>
+              <div class="pager" id="inventoryPager"></div>
             </div>
-            <div class="roster-list" id="inventoryList" style="margin-top:16px;"></div>
-            <div class="pager" id="inventoryPager"></div>
           </div>
         </section>
       </section>
@@ -1703,6 +1738,10 @@
     let rosterVisible = false;
     let rosterPage = 1;
     let inventoryPage = 1;
+    let scheduleCollapsed = false;
+    let addItemCollapsed = false;
+    let inventoryCollapsed = false;
+    let selectedScheduleDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
     const $ = (id) => document.getElementById(id);
     const safe = (fn, label = "Action") => {
       try {
@@ -2468,11 +2507,13 @@
       const options = DAYS.map(day => `<option value="${day}">${day}</option>`).join("");
       if (!$("posDay").innerHTML) $("posDay").innerHTML = options;
       if (!$("newItemDay").innerHTML) $("newItemDay").innerHTML = `<option value="Everyday">All days</option>${options}`;
+      if ($("scheduleDaySelect") && !$("scheduleDaySelect").innerHTML) $("scheduleDaySelect").innerHTML = options;
       if ($("inventoryDayFilter") && !$("inventoryDayFilter").dataset.ready) {
         $("inventoryDayFilter").innerHTML = `<option value="all">All days</option><option value="Everyday">Everyday items</option>${options}`;
         $("inventoryDayFilter").dataset.ready = "true";
       }
       $("posDay").value = state.selectedPosDay;
+      if ($("scheduleDaySelect")) $("scheduleDaySelect").value = selectedScheduleDay;
     }
 
     function renderPreorder(student) {
@@ -2616,6 +2657,8 @@
     function renderCatalogueAdmin() {
       fillDaySelects();
       $("catalogueCount").textContent = `${state.catalogue.length} items`;
+      $("addItemBody").classList.toggle("is-collapsed", addItemCollapsed);
+      $("toggleAddItemBtn").textContent = addItemCollapsed ? "Expand" : "Collapse";
       const lowStock = state.catalogue.filter(item => Number(item.stock) <= 10).length;
       $("catalogueList").innerHTML = `
         <div class="student-row">
@@ -2629,16 +2672,19 @@
       $("scheduleStatusBadge").textContent = schedule.enabled
         ? `${schedule.dayName} ${schedule.openLabel}-${schedule.closeLabel}`
         : `${schedule.dayName} closed`;
-      $("scheduleEditor").innerHTML = DAYS.map(day => {
-        const config = state.daySchedule[day] || DEFAULT_DAY_SCHEDULE[day];
-        return `
-          <div class="schedule-row">
-            <strong>${day}</strong>
-            <label>Status<select class="schedule-field" data-day="${day}" data-field="enabled"><option value="true" ${config.enabled !== false ? "selected" : ""}>Open</option><option value="false" ${config.enabled === false ? "selected" : ""}>Closed</option></select></label>
-            <label>Opening<input class="schedule-field" data-day="${day}" data-field="open" type="time" value="${escapeAttr(config.open)}"></label>
-            <label>Closing<input class="schedule-field" data-day="${day}" data-field="close" type="time" value="${escapeAttr(config.close)}"></label>
-          </div>`;
-      }).join("");
+      $("scheduleBody").classList.toggle("is-collapsed", scheduleCollapsed);
+      $("toggleScheduleBtn").textContent = scheduleCollapsed ? "Expand" : "Collapse";
+      const day = DAYS.includes(selectedScheduleDay) ? selectedScheduleDay : schedule.dayName;
+      selectedScheduleDay = day;
+      if ($("scheduleDaySelect")) $("scheduleDaySelect").value = day;
+      const config = state.daySchedule[day] || DEFAULT_DAY_SCHEDULE[day];
+      $("scheduleEditor").innerHTML = `
+        <div class="schedule-row">
+          <strong>${day}</strong>
+          <label>Status<select class="schedule-field" data-day="${day}" data-field="enabled"><option value="true" ${config.enabled !== false ? "selected" : ""}>Open</option><option value="false" ${config.enabled === false ? "selected" : ""}>Closed</option></select></label>
+          <label>Opening<input class="schedule-field" data-day="${day}" data-field="open" type="time" value="${escapeAttr(config.open)}"></label>
+          <label>Closing<input class="schedule-field" data-day="${day}" data-field="close" type="time" value="${escapeAttr(config.close)}"></label>
+        </div>`;
       document.querySelectorAll(".schedule-field").forEach(input => input.addEventListener("change", () => updateDaySchedule(input)));
     }
 
@@ -2654,6 +2700,8 @@
 
     function renderInventory() {
       $("inventoryCount").textContent = `${state.catalogue.length} items`;
+      $("inventoryBody").classList.toggle("is-collapsed", inventoryCollapsed);
+      $("toggleInventoryBtn").textContent = inventoryCollapsed ? "Expand" : "Collapse";
       const items = filteredInventoryUi();
       const page = pagedItems(items, inventoryPage, 12);
       inventoryPage = page.page;
@@ -3939,6 +3987,22 @@
     $("rosterPageSize").addEventListener("change", () => {
       rosterPage = 1;
       renderRoster();
+    });
+    $("toggleScheduleBtn").addEventListener("click", () => {
+      scheduleCollapsed = !scheduleCollapsed;
+      renderScheduleEditor();
+    });
+    $("scheduleDaySelect").addEventListener("change", () => {
+      selectedScheduleDay = $("scheduleDaySelect").value;
+      renderScheduleEditor();
+    });
+    $("toggleAddItemBtn").addEventListener("click", () => {
+      addItemCollapsed = !addItemCollapsed;
+      renderCatalogueAdmin();
+    });
+    $("toggleInventoryBtn").addEventListener("click", () => {
+      inventoryCollapsed = !inventoryCollapsed;
+      renderInventory();
     });
     $("inventorySearch").addEventListener("input", () => {
       inventoryPage = 1;
